@@ -172,12 +172,14 @@ function SettingsContent() {
             <form onSubmit={handleDisable} className="mt-4 space-y-3" autoComplete="off">
               <label className="block text-xs text-mist">Confirm your password to disable</label>
               <input
-                type="password"
-                autoComplete="off"
-                value={disablePassword}
-                onChange={(e) => setDisablePassword(e.target.value)}
-                onFocus={() => setDisableError('')}
-                className="w-full rounded-sm border border-line bg-ink px-3 py-2 text-sm text-paper outline-none focus:border-signal"
+              type="password"
+              autoComplete="off"
+              placeholder="Confirm your password to disable"
+              data-testid="2fa-disable-password"
+              value={disablePassword}
+              onChange={(e) => setDisablePassword(e.target.value)}
+              onFocus={() => setDisableError('')}
+              className="w-full rounded-sm border border-line bg-ink px-3 py-2 text-sm text-paper outline-none focus:border-signal"
               />
               {disableError && <Alert variant="error">{disableError}</Alert>}
               <div className="flex gap-2">

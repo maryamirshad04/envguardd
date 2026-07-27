@@ -7,8 +7,8 @@ const QRCode = require('qrcode');
 const { OAuth2Client } = require('google-auth-library');
 const supabase = require('../config/supabase');
 const requireAuth = require('../middleware/auth');
+const { maskEmail, generateUniqueSlug } = require('../utils/helpers');
 const logger = require('../utils/logger');
-const { maskEmail } = require('../utils/helpers');
 const { sendPasswordResetEmail, sendVerificationEmail } = require('../config/mailjet');
 
 const router = express.Router();
@@ -34,11 +34,22 @@ function issueSessionCookie(res, user) {
   });
   res.cookie('token', token, COOKIE_OPTIONS);
 }
-
 async function createDefaultCompany(userId) {
+  let slug;
+  try {
+    slug = await generateUniqueSlug('My Workspace', 'companies');
+  } catch (err) {
+    logger.error({ userId, error: err.message }, 'Failed to generate slug for default company');
+    slug = `my-workspace-${Date.now()}`;
+  }
+
   const { data: company, error: companyError } = await supabase
     .from('companies')
-    .insert({ name: 'My Workspace', created_by: userId })
+    .insert({
+      name: 'My Workspace',
+      slug,                  
+      created_by: userId,
+    })
     .select()
     .single();
 
