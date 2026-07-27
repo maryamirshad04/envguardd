@@ -1,7 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import GoogleSignInButton from '@/components/GoogleSignInButton';
 
-// Polyfill for jsdom
 global.ResizeObserver = class {
   observe() {}
   unobserve() {}

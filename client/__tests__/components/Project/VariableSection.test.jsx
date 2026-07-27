@@ -70,7 +70,6 @@ describe('VariableSection', () => {
     render(<VariableSection {...defaultProps} />);
     expect(screen.getByText('DB_URL')).toBeInTheDocument();
     expect(screen.getByText('API_KEY')).toBeInTheDocument();
-    // Secret value is masked with 6 bullets (actual DOM shows ••••••)
     expect(screen.getByText('••••••')).toBeInTheDocument();
   });
 });

@@ -13,10 +13,7 @@ describe('FlowDiagram', () => {
 
   test('renders all decorative images', () => {
     render(<FlowDiagram />);
-    // Check that at least a few decorative images are present
-    const images = screen.getAllByRole('img', { hidden: true }); // they have aria-hidden="true"
-    // We can't easily test all, but check count
-    // We'll just verify the component renders without crashing
+    const images = screen.getAllByRole('img', { hidden: true }); 
     expect(images.length).toBeGreaterThan(0);
   });
 });

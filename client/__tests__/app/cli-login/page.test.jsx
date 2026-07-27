@@ -16,11 +16,6 @@ jest.mock('@/lib/api', () => ({
   },
 }));
 
-// Official Testing Library recipe for text split across elements
-// (see: https://testing-library.com/docs/queries/bytext/#text-content-differing-across-elements).
-// A node "matches" only if its own normalized text equals the expected string
-// AND none of its children also match - this excludes every ancestor
-// (p, div, main, body) that would otherwise also technically contain the text.
 function matchesExactText(expectedText) {
   const normalize = (text) => text.replace(/\s+/g, ' ').trim();
   return (_content, element) => {
