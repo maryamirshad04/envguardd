@@ -3,12 +3,12 @@ const express = require('express');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
 
-const authRoutes = require('./src/routes/auth');
-const companyRoutes = require('./src/routes/companies');
-const inviteRoutes = require('./src/routes/invites');
-const shareRoutes = require('./src/routes/share');
-const cliRoutes = require('./src/routes/cli');
-const logger = require('./src/utils/logger');
+const authRoutes = require('./routes/auth');
+const companyRoutes = require('./routes/companies');
+const inviteRoutes = require('./routes/invites');
+const shareRoutes = require('./routes/share');
+const cliRoutes = require('./routes/cli');
+const logger = require('./utils/logger');
 
 const app = express();
 
