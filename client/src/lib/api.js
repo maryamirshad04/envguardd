@@ -126,6 +126,11 @@ export const api = {
   },
 
   audit: {
-  list: (companySlug) => request(`/api/audit/${companySlug}`),
+  list: (companySlug, { page = 1, pageSize = 15, q = '', action = '' } = {}) => {
+    const params = new URLSearchParams({ page, pageSize });
+    if (q) params.set('q', q);
+    if (action && action !== 'all') params.set('action', action);
+    return request(`/api/audit/${companySlug}?${params.toString()}`);
+  },
 },
 };
