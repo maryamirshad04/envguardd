@@ -77,7 +77,7 @@ router.post('/', async (req, res) => {
   }
 
   // AUDIT: Company created
-  await logAuditEvent({
+  logAuditEvent({
     actorId: req.user.userId,
     action: COMPANY_CREATED,
     resourceType: 'company',
@@ -146,7 +146,7 @@ router.delete('/:companySlug', requireMember, requireAdmin, async (req, res) => 
   }
 
   // AUDIT: Company deleted
-  await logAuditEvent({
+  logAuditEvent({
     actorId: req.user.userId,
     action: COMPANY_DELETED,
     resourceType: 'company',
@@ -257,7 +257,7 @@ router.post('/:companySlug/invites', requireMember, requireAdmin, async (req, re
   }
 
   // AUDIT: Invite sent
-  await logAuditEvent({
+  logAuditEvent({
     actorId: req.user.userId,
     action: INVITE_SENT,
     resourceType: 'invite',
@@ -290,7 +290,7 @@ router.delete('/:companySlug/invites/:inviteId', requireMember, requireAdmin, as
   }
 
   // AUDIT: Invite revoked
-  await logAuditEvent({
+  logAuditEvent({
     actorId: req.user.userId,
     action: INVITE_REVOKED,
     resourceType: 'invite',
@@ -364,7 +364,7 @@ router.post('/:companySlug/projects', requireMember, async (req, res) => {
     .insert(['development', 'staging', 'production'].map((n) => ({ project_id: data.id, name: n })));
 
   // AUDIT: Project created
-  await logAuditEvent({
+  logAuditEvent({
     actorId: req.user.userId,
     action: PROJECT_CREATED,
     resourceType: 'project',
@@ -450,7 +450,7 @@ router.delete('/:companySlug/projects/:projectSlug', requireMember, async (req, 
   }
 
   // AUDIT: Project deleted
-  await logAuditEvent({
+  logAuditEvent({
     actorId: req.user.userId,
     action: PROJECT_DELETED,
     resourceType: 'project',
@@ -509,7 +509,7 @@ router.post('/:companySlug/projects/:projectSlug/environments', requireMember, a
   }
 
   // AUDIT: Environment created
-  await logAuditEvent({
+  logAuditEvent({
     actorId: req.user.userId,
     action: ENVIRONMENT_CREATED,
     resourceType: 'environment',
@@ -618,7 +618,7 @@ router.post('/:companySlug/projects/:projectSlug/environments/:envId/variables',
   }
 
   // AUDIT: Secret updated (or created, but we'll treat as update for now)
-  await logAuditEvent({
+  logAuditEvent({
     actorId: req.user.userId,
     action: SECRET_UPDATED,
     resourceType: 'secret',
@@ -669,7 +669,7 @@ router.delete('/:companySlug/projects/:projectSlug/environments/:envId/variables
   }
 
   // AUDIT: Secret deleted
-  await logAuditEvent({
+  logAuditEvent({
     actorId: req.user.userId,
     action: SECRET_DELETED,
     resourceType: 'secret',
@@ -733,7 +733,7 @@ router.post('/:companySlug/projects/:projectSlug/environments/:envId/variables/b
   }));
 
   // AUDIT: Secret imported (bulk)
-  await logAuditEvent({
+  logAuditEvent({
     actorId: req.user.userId,
     action: SECRET_IMPORTED,
     resourceType: 'environment',

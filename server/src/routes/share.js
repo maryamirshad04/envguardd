@@ -160,7 +160,7 @@ router.post('/share', requireAuth, async (req, res) => {
   const shareUrl = `${process.env.CLIENT_URL}/share/${token}`;
 
   // AUDIT: Share link created
-  await logAuditEvent({
+  logAuditEvent({
     actorId: userId,
     action: SHARE_LINK_CREATED,
     resourceType: 'environment',
@@ -219,7 +219,7 @@ router.get('/share/:token', async (req, res) => {
   }
 
   // AUDIT: Share link accessed (actorId null, but we can include some metadata)
-  await logAuditEvent({
+  logAuditEvent({
     actorId: null, // not authenticated
     action: SHARE_LINK_ACCESSED,
     resourceType: 'share_link',

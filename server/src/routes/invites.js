@@ -106,7 +106,7 @@ router.post('/:token/accept', requireAuth, async (req, res) => {
   await supabase.from('invites').update({ status: 'accepted' }).eq('id', invite.id);
 
   // AUDIT: Invite accepted
-  await logAuditEvent({
+  logAuditEvent({
     actorId: userId,
     action: INVITE_ACCEPTED,
     resourceType: 'invite',

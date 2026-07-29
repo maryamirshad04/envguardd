@@ -157,7 +157,7 @@ router.post('/signup', async (req, res) => {
   await createDefaultCompany(user.id);
 
   // AUDIT: Signup
-  await logAuditEvent({
+  logAuditEvent({
     actorId: user.id,
     action: SIGNUP,
     resourceType: 'user',
@@ -283,7 +283,7 @@ router.post('/login', async (req, res) => {
   if (error || !user) {
     logger.warn({ email: maskedEmail }, 'Login failed - user not found');
     // AUDIT: failed login
-    await logAuditEvent({
+    logAuditEvent({
       actorId: null,
       action: LOGIN_FAILED,
       metadata: { email: maskedEmail },
@@ -309,7 +309,7 @@ router.post('/login', async (req, res) => {
   if (!valid) {
     logger.warn({ userId: user.id, email: maskedEmail }, 'Login failed - invalid password');
     // AUDIT: failed login
-    await logAuditEvent({
+    logAuditEvent({
       actorId: user.id,
       action: LOGIN_FAILED,
       metadata: { email: maskedEmail },
@@ -329,7 +329,7 @@ router.post('/login', async (req, res) => {
   }
 
   // AUDIT: login success
-  await logAuditEvent({
+  logAuditEvent({
     actorId: user.id,
     action: LOGIN_SUCCESS,
     resourceType: 'user',
@@ -382,7 +382,7 @@ router.post('/login/2fa', async (req, res) => {
   }
 
   // AUDIT: login success after 2FA
-  await logAuditEvent({
+  logAuditEvent({
     actorId: user.id,
     action: LOGIN_SUCCESS,
     resourceType: 'user',
@@ -436,7 +436,7 @@ router.post('/google', async (req, res) => {
       await supabase.from('users').update({ google_id: googleId }).eq('id', existingUser.id);
     }
     // AUDIT: login success via Google
-    await logAuditEvent({
+    logAuditEvent({
       actorId: user.id,
       action: LOGIN_SUCCESS,
       resourceType: 'user',
@@ -457,7 +457,7 @@ router.post('/google', async (req, res) => {
     user = created;
     await createDefaultCompany(user.id);
     // AUDIT: signup via Google
-    await logAuditEvent({
+    logAuditEvent({
       actorId: user.id,
       action: SIGNUP,
       resourceType: 'user',
@@ -465,7 +465,7 @@ router.post('/google', async (req, res) => {
       req,
     });
     // Also log login success
-    await logAuditEvent({
+    logAuditEvent({
       actorId: user.id,
       action: LOGIN_SUCCESS,
       resourceType: 'user',
@@ -564,7 +564,7 @@ router.post('/reset-password', async (req, res) => {
   }
 
   // AUDIT: password reset
-  await logAuditEvent({
+  logAuditEvent({
     actorId: user.id,
     action: PASSWORD_RESET,
     resourceType: 'user',
@@ -580,7 +580,7 @@ router.post('/reset-password', async (req, res) => {
 router.post('/logout', async (req, res) => {
   const userId = req.user?.userId;
   if (userId) {
-    await logAuditEvent({
+    logAuditEvent({
       actorId: userId,
       action: LOGOUT,
       resourceType: 'user',
@@ -636,7 +636,7 @@ router.patch('/email', requireAuth, async (req, res) => {
   }
 
   // AUDIT: email changed
-  await logAuditEvent({
+  logAuditEvent({
     actorId: req.user.userId,
     action: EMAIL_CHANGED,
     resourceType: 'user',
@@ -736,7 +736,7 @@ router.post('/2fa/verify', requireAuth, async (req, res) => {
   }
 
   // AUDIT: 2FA enabled
-  await logAuditEvent({
+  logAuditEvent({
     actorId: req.user.userId,
     action: TWO_FACTOR_ENABLED,
     resourceType: 'user',
@@ -786,7 +786,7 @@ router.post('/2fa/disable', requireAuth, async (req, res) => {
   }
 
   // AUDIT: 2FA disabled
-  await logAuditEvent({
+  logAuditEvent({
     actorId: req.user.userId,
     action: TWO_FACTOR_DISABLED,
     resourceType: 'user',
