@@ -3,6 +3,8 @@ const supabase = require('../config/supabase');
 const requireAuth = require('../middleware/auth');
 const logger = require('../utils/logger');
 const { maskEmail } = require('../utils/helpers');
+const { logAuditEvent } = require('../utils/audit');
+const { INVITE_ACCEPTED } = require('../constants/auditActions');
 
 const router = express.Router();
 
@@ -81,16 +83,21 @@ router.post('/:token/accept', requireAuth, async (req, res) => {
     });
   }
 
+  // Store these for audit and consistent use
+  const companyId = invite.company_id;
+  const role = invite.role;
+  const email = invite.email;
+
   const { error: memberError } = await supabase
     .from('company_members')
     .upsert(
-      { company_id: invite.company_id, user_id: userId, role: invite.role },
+      { company_id: companyId, user_id: userId, role: role },
       { onConflict: 'company_id,user_id' }
     );
 
   if (memberError) {
     logger.error(
-      { userId, inviteId: invite.id, companyId: invite.company_id, error: memberError.message },
+      { userId, inviteId: invite.id, companyId, error: memberError.message },
       'Failed to add member for invite acceptance'
     );
     return res.status(500).json({ error: memberError.message });
@@ -98,11 +105,25 @@ router.post('/:token/accept', requireAuth, async (req, res) => {
 
   await supabase.from('invites').update({ status: 'accepted' }).eq('id', invite.id);
 
+  // AUDIT: Invite accepted
+  await logAuditEvent({
+    actorId: userId,
+    action: INVITE_ACCEPTED,
+    resourceType: 'invite',
+    resourceId: invite.id,
+    metadata: {
+      companyId,
+      role,
+      email: maskEmail(email),
+    },
+    req,
+  });
+
   logger.info(
-    { userId, inviteId: invite.id, companyId: invite.company_id, role: invite.role },
+    { userId, inviteId: invite.id, companyId, role },
     'Invite accepted successfully'
   );
-  res.json({ companyId: invite.company_id });
+  res.json({ companyId });
 });
 
 module.exports = router;

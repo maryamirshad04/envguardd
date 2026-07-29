@@ -58,7 +58,6 @@ export default function CompanyDetailPage() {
         setCompany(res.company);
         setError('');
       } catch (err) {
-        // If company not found, redirect to dashboard
         if (err.message?.toLowerCase().includes('not found')) {
           router.push('/dashboard');
         } else {
@@ -74,7 +73,7 @@ export default function CompanyDetailPage() {
 
   // Load projects only if company exists
   useEffect(() => {
-    if (!company) return; // wait for company to load
+    if (!company) return;
     if (tab !== 'projects' || projectsLoaded) return;
     setProjectsLoading(true);
     api.companies.projects
@@ -84,7 +83,6 @@ export default function CompanyDetailPage() {
         setProjectsLoaded(true);
       })
       .catch((err) => {
-        // If projects fetch fails, treat as 404 and redirect
         if (err.message?.toLowerCase().includes('not found')) {
           router.push('/dashboard');
         } else {
@@ -257,7 +255,7 @@ export default function CompanyDetailPage() {
         &larr; All Teams
       </Link>
 
-      <div className="mt-4 flex items-center gap-3">
+      <div className="mt-4 flex items-center gap-3 flex-wrap">
         <p className="font-mono text-xs uppercase tracking-wider text-signal">Team</p>
         <span
           className={`rounded-sm px-2 py-0.5 font-mono text-[10px] uppercase tracking-wide ${
@@ -266,7 +264,17 @@ export default function CompanyDetailPage() {
         >
           {company?.role}
         </span>
+
+        {isAdmin && (
+  <Link
+    href={`/dashboard/${companySlug}/audit`}
+    className="ml-2 rounded-sm border border-line px-3 py-1.5 text-xs text-mist hover:border-signal/40 hover:text-paper"
+  >
+    Audit Logs
+  </Link>
+)}
       </div>
+
       <h1 className="mt-2 text-2xl font-semibold text-paper">{company?.name}</h1>
 
       <div className="mt-8 flex gap-2 border-b border-line">

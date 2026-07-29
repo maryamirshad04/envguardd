@@ -4,6 +4,8 @@ const supabase = require('../config/supabase');
 const requireAuth = require('../middleware/auth');
 const { encrypt, decrypt } = require('../utils/crypto');
 const logger = require('../utils/logger');
+const { logAuditEvent } = require('../utils/audit');
+const { SHARE_LINK_CREATED, SHARE_LINK_ACCESSED } = require('../constants/auditActions');
 
 const router = express.Router();
 
@@ -37,7 +39,6 @@ async function resolveProjectId(companyId, identifier) {
 }
 
 async function getEnvironmentWithAccess(companyId, projectId, envId, userId) {
-  // 1. Check membership
   const { data: membership, error: memErr } = await supabase
     .from('company_members')
     .select('role')
@@ -81,7 +82,7 @@ router.post('/share', requireAuth, async (req, res) => {
   logger.info({ userId, companyId, projectId, environmentId, expiryMinutes, variableKeys }, 'Generating share link');
 
   const minExpiry = 5;
-  const maxExpiry = 10080; 
+  const maxExpiry = 10080;
   if (expiryMinutes < minExpiry || expiryMinutes > maxExpiry) {
     return res.status(400).json({ error: `Expiry must be between ${minExpiry} and ${maxExpiry} minutes` });
   }
@@ -157,6 +158,22 @@ router.post('/share', requireAuth, async (req, res) => {
   }
 
   const shareUrl = `${process.env.CLIENT_URL}/share/${token}`;
+
+  // AUDIT: Share link created
+  await logAuditEvent({
+    actorId: userId,
+    action: SHARE_LINK_CREATED,
+    resourceType: 'environment',
+    resourceId: env.id,
+    metadata: {
+      variableKeys: variableKeys || 'all',
+      expiryMinutes,
+      token: token.substring(0, 8) + '...',
+      companyId: resolvedCompanyId, // Added companyId for filtering
+    },
+    req,
+  });
+
   logger.info({ userId, envId: env.id, token: token.substring(0, 8) + '...' }, 'Share link generated');
   res.status(201).json({ url: shareUrl });
 });
@@ -200,6 +217,21 @@ router.get('/share/:token', async (req, res) => {
     logger.error({ linkId: link.id, error: e.message }, 'Failed to decrypt shared link data');
     return res.status(500).json({ error: 'Failed to decrypt data' });
   }
+
+  // AUDIT: Share link accessed (actorId null, but we can include some metadata)
+  await logAuditEvent({
+    actorId: null, // not authenticated
+    action: SHARE_LINK_ACCESSED,
+    resourceType: 'share_link',
+    resourceId: link.id,
+    metadata: {
+      token: token.substring(0, 8) + '...',
+      varCount: decrypted.length,
+      // We don't have companyId here, but we could optionally fetch it from the environment if needed.
+      // For now, we omit it as we don't have it.
+    },
+    req,
+  });
 
   logger.info({ linkId: link.id, varCount: decrypted.length }, 'Shared link retrieved successfully');
   res.json({ variables: decrypted });

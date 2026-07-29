@@ -9,6 +9,7 @@ const inviteRoutes = require('./routes/invites');
 const shareRoutes = require('./routes/share');
 const cliRoutes = require('./routes/cli');
 const logger = require('./utils/logger');
+const auditRoutes = require('./routes/audit');
 
 const app = express();
 
@@ -45,6 +46,7 @@ app.use('/api/auth/cli', cliRoutes);
 app.use('/api/companies', companyRoutes);
 app.use('/api/invites', inviteRoutes);
 app.use('/api', shareRoutes);
+app.use('/api/audit', auditRoutes);
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
 

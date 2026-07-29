@@ -10,6 +10,12 @@ const requireAuth = require('../middleware/auth');
 const { maskEmail, generateUniqueSlug } = require('../utils/helpers');
 const logger = require('../utils/logger');
 const { sendPasswordResetEmail, sendVerificationEmail } = require('../config/mailjet');
+const { logAuditEvent } = require('../utils/audit');
+const {
+  LOGIN_SUCCESS, LOGIN_FAILED, LOGOUT, SIGNUP,
+  PASSWORD_RESET, PASSWORD_CHANGED, EMAIL_CHANGED,
+  TWO_FACTOR_ENABLED, TWO_FACTOR_DISABLED
+} = require('../constants/auditActions');
 
 const router = express.Router();
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
@@ -28,12 +34,27 @@ const VERIFICATION_TOKEN_EXPIRY_MS = 24 * 60 * 60 * 1000;
 
 const pendingCliRequests = new Map();
 
-function issueSessionCookie(res, user) {
-  const token = jwt.sign({ userId: user.id, email: user.email }, process.env.JWT_SECRET, {
-    expiresIn: '7d',
-  });
+// Helper to issue session cookie with is_admin
+async function issueSessionCookie(res, user) {
+  let isAdmin = user.is_admin || false;
+  if (user.is_admin === undefined) {
+    const { data, error } = await supabase
+      .from('users')
+      .select('is_admin')
+      .eq('id', user.id)
+      .single();
+    if (!error && data) {
+      isAdmin = data.is_admin || false;
+    }
+  }
+  const token = jwt.sign(
+    { userId: user.id, email: user.email, is_admin: isAdmin },
+    process.env.JWT_SECRET,
+    { expiresIn: '7d' }
+  );
   res.cookie('token', token, COOKIE_OPTIONS);
 }
+
 async function createDefaultCompany(userId) {
   let slug;
   try {
@@ -47,7 +68,7 @@ async function createDefaultCompany(userId) {
     .from('companies')
     .insert({
       name: 'My Workspace',
-      slug,                  
+      slug,
       created_by: userId,
     })
     .select()
@@ -69,6 +90,7 @@ async function createDefaultCompany(userId) {
   }
 }
 
+// --- SIGNUP ---
 router.post('/signup', async (req, res) => {
   const { email, password } = req.body;
   const maskedEmail = maskEmail(email);
@@ -134,6 +156,15 @@ router.post('/signup', async (req, res) => {
 
   await createDefaultCompany(user.id);
 
+  // AUDIT: Signup
+  await logAuditEvent({
+    actorId: user.id,
+    action: SIGNUP,
+    resourceType: 'user',
+    resourceId: user.id,
+    req,
+  });
+
   logger.info({ userId: user.id, email: maskedEmail }, 'User signed up, verification email sent');
   res.status(201).json({
     message: 'Account created. Please verify your email address. Check your inbox for a verification link.',
@@ -141,7 +172,7 @@ router.post('/signup', async (req, res) => {
   });
 });
 
-// --- VERIFY EMAIL  ---
+// --- VERIFY EMAIL ---
 router.get('/verify-email/:token', async (req, res) => {
   const { token } = req.params;
   const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
@@ -157,7 +188,7 @@ router.get('/verify-email/:token', async (req, res) => {
   }
 
   if (user.email_verified) {
-    issueSessionCookie(res, { id: user.id, email: user.email });
+    await issueSessionCookie(res, { id: user.id, email: user.email });
     return res.json({ message: 'Email already verified. You are now logged in.' });
   }
 
@@ -174,7 +205,7 @@ router.get('/verify-email/:token', async (req, res) => {
     return res.status(500).json({ error: 'Could not verify email. Please try again.' });
   }
 
-  issueSessionCookie(res, { id: user.id, email: user.email });
+  await issueSessionCookie(res, { id: user.id, email: user.email });
   res.json({ message: 'Email verified successfully. You are now logged in.' });
 });
 
@@ -232,7 +263,7 @@ router.post('/resend-verification', async (req, res) => {
   }
 });
 
-// --- LOGIN (with email_verified check) ---
+// --- LOGIN ---
 router.post('/login', async (req, res) => {
   const { email, password } = req.body;
   const maskedEmail = maskEmail(email);
@@ -251,6 +282,13 @@ router.post('/login', async (req, res) => {
 
   if (error || !user) {
     logger.warn({ email: maskedEmail }, 'Login failed - user not found');
+    // AUDIT: failed login
+    await logAuditEvent({
+      actorId: null,
+      action: LOGIN_FAILED,
+      metadata: { email: maskedEmail },
+      req,
+    });
     return res.status(401).json({ error: 'Invalid credentials' });
   }
 
@@ -270,6 +308,13 @@ router.post('/login', async (req, res) => {
   const valid = await bcrypt.compare(password, user.password_hash);
   if (!valid) {
     logger.warn({ userId: user.id, email: maskedEmail }, 'Login failed - invalid password');
+    // AUDIT: failed login
+    await logAuditEvent({
+      actorId: user.id,
+      action: LOGIN_FAILED,
+      metadata: { email: maskedEmail },
+      req,
+    });
     return res.status(401).json({ error: 'Invalid credentials' });
   }
 
@@ -283,11 +328,21 @@ router.post('/login', async (req, res) => {
     return res.json({ requires2fa: true, tempToken });
   }
 
-  issueSessionCookie(res, { id: user.id, email: user.email });
+  // AUDIT: login success
+  await logAuditEvent({
+    actorId: user.id,
+    action: LOGIN_SUCCESS,
+    resourceType: 'user',
+    resourceId: user.id,
+    req,
+  });
+
+  await issueSessionCookie(res, user);
   logger.info({ userId: user.id, email: maskedEmail }, 'User logged in successfully');
   res.json({ user: { id: user.id, email: user.email } });
 });
 
+// --- LOGIN 2FA ---
 router.post('/login/2fa', async (req, res) => {
   const { tempToken, code } = req.body;
   logger.info({ hasTempToken: !!tempToken }, '2FA verification attempt');
@@ -326,13 +381,21 @@ router.post('/login/2fa', async (req, res) => {
     return res.status(401).json({ error: 'Invalid code. Check your authenticator app and try again.' });
   }
 
-  issueSessionCookie(res, { id: user.id, email: user.email });
+  // AUDIT: login success after 2FA
+  await logAuditEvent({
+    actorId: user.id,
+    action: LOGIN_SUCCESS,
+    resourceType: 'user',
+    resourceId: user.id,
+    req,
+  });
+
+  await issueSessionCookie(res, user);
   logger.info({ userId: user.id, email: maskEmail(user.email) }, '2FA successful - session issued');
   res.json({ user: { id: user.id, email: user.email } });
 });
 
-// --- Google OAuth ------------------------------------------------------------
-
+// --- Google OAuth ---
 router.post('/google', async (req, res) => {
   const { credential } = req.body;
   if (!credential) {
@@ -372,6 +435,14 @@ router.post('/google', async (req, res) => {
       // Same email signed up with a password before - link the Google account.
       await supabase.from('users').update({ google_id: googleId }).eq('id', existingUser.id);
     }
+    // AUDIT: login success via Google
+    await logAuditEvent({
+      actorId: user.id,
+      action: LOGIN_SUCCESS,
+      resourceType: 'user',
+      resourceId: user.id,
+      req,
+    });
   } else {
     const { data: created, error } = await supabase
       .from('users')
@@ -385,16 +456,31 @@ router.post('/google', async (req, res) => {
     }
     user = created;
     await createDefaultCompany(user.id);
+    // AUDIT: signup via Google
+    await logAuditEvent({
+      actorId: user.id,
+      action: SIGNUP,
+      resourceType: 'user',
+      resourceId: user.id,
+      req,
+    });
+    // Also log login success
+    await logAuditEvent({
+      actorId: user.id,
+      action: LOGIN_SUCCESS,
+      resourceType: 'user',
+      resourceId: user.id,
+      req,
+    });
     logger.info({ userId: user.id, email: maskedEmail }, 'New user created via Google sign-in');
   }
 
-  issueSessionCookie(res, { id: user.id, email: user.email });
+  await issueSessionCookie(res, user);
   logger.info({ userId: user.id, email: maskedEmail }, 'User signed in via Google');
   res.json({ user: { id: user.id, email: user.email } });
 });
 
-// --- Password reset -----------------------------------------------------------
-
+// --- Password reset ---
 router.post('/forgot-password', async (req, res) => {
   const { email } = req.body;
   const maskedEmail = maskEmail(email);
@@ -477,21 +563,43 @@ router.post('/reset-password', async (req, res) => {
     return res.status(500).json({ error: updateError.message });
   }
 
+  // AUDIT: password reset
+  await logAuditEvent({
+    actorId: user.id,
+    action: PASSWORD_RESET,
+    resourceType: 'user',
+    resourceId: user.id,
+    req,
+  });
+
   logger.info({ userId: user.id, email: maskEmail(user.email) }, 'Password reset successful');
   res.json({ message: 'Password updated. You can now log in.' });
 });
 
-router.post('/logout', (req, res) => {
+// --- LOGOUT ---
+router.post('/logout', async (req, res) => {
+  const userId = req.user?.userId;
+  if (userId) {
+    await logAuditEvent({
+      actorId: userId,
+      action: LOGOUT,
+      resourceType: 'user',
+      resourceId: userId,
+      req,
+    });
+  }
   res.clearCookie('token', COOKIE_OPTIONS);
   logger.info({ ip: req.ip }, 'User logged out');
   res.json({ message: 'Logged out' });
 });
 
+// --- ME ---
 router.get('/me', requireAuth, (req, res) => {
   logger.info({ userId: req.user.userId, email: maskEmail(req.user.email) }, 'Session check /me');
   res.json({ user: req.user });
 });
 
+// --- UPDATE EMAIL ---
 router.patch('/email', requireAuth, async (req, res) => {
   const { email } = req.body;
   const newEmailMasked = maskEmail(email);
@@ -527,11 +635,22 @@ router.patch('/email', requireAuth, async (req, res) => {
     return res.status(500).json({ error: error.message });
   }
 
+  // AUDIT: email changed
+  await logAuditEvent({
+    actorId: req.user.userId,
+    action: EMAIL_CHANGED,
+    resourceType: 'user',
+    resourceId: req.user.userId,
+    metadata: { oldEmail: maskEmail(req.user.email), newEmail: newEmailMasked },
+    req,
+  });
+
   res.clearCookie('token', COOKIE_OPTIONS);
   logger.info({ userId: req.user.userId, newEmail: newEmailMasked }, 'Email updated - cookie cleared, user must re-login');
   res.json({ message: 'Email updated. Please log in again.' });
 });
 
+// --- 2FA STATUS ---
 router.get('/2fa/status', requireAuth, async (req, res) => {
   logger.info({ userId: req.user.userId }, '2FA status check');
   const { data, error } = await supabase
@@ -547,6 +666,7 @@ router.get('/2fa/status', requireAuth, async (req, res) => {
   res.json({ enabled: !!data.two_factor_enabled, prompted: !!data.two_factor_prompted });
 });
 
+// --- 2FA DISMISS PROMPT ---
 router.post('/2fa/dismiss-prompt', requireAuth, async (req, res) => {
   const { error } = await supabase
     .from('users')
@@ -557,6 +677,7 @@ router.post('/2fa/dismiss-prompt', requireAuth, async (req, res) => {
   res.json({ prompted: true });
 });
 
+// --- 2FA SETUP ---
 router.post('/2fa/setup', requireAuth, async (req, res) => {
   logger.info({ userId: req.user.userId, email: maskEmail(req.user.email) }, '2FA setup started');
   const secret = authenticator.generateSecret();
@@ -577,6 +698,7 @@ router.post('/2fa/setup', requireAuth, async (req, res) => {
   res.json({ secret, qrCodeDataUrl });
 });
 
+// --- 2FA VERIFY ---
 router.post('/2fa/verify', requireAuth, async (req, res) => {
   const { code } = req.body;
   logger.info({ userId: req.user.userId }, '2FA verification attempt');
@@ -613,10 +735,20 @@ router.post('/2fa/verify', requireAuth, async (req, res) => {
     return res.status(500).json({ error: updateError.message });
   }
 
+  // AUDIT: 2FA enabled
+  await logAuditEvent({
+    actorId: req.user.userId,
+    action: TWO_FACTOR_ENABLED,
+    resourceType: 'user',
+    resourceId: req.user.userId,
+    req,
+  });
+
   logger.info({ userId: req.user.userId }, '2FA enabled successfully');
   res.json({ enabled: true });
 });
 
+// --- 2FA DISABLE ---
 router.post('/2fa/disable', requireAuth, async (req, res) => {
   const { password } = req.body;
   logger.info({ userId: req.user.userId }, '2FA disable attempt');
@@ -653,10 +785,20 @@ router.post('/2fa/disable', requireAuth, async (req, res) => {
     return res.status(500).json({ error: updateError.message });
   }
 
+  // AUDIT: 2FA disabled
+  await logAuditEvent({
+    actorId: req.user.userId,
+    action: TWO_FACTOR_DISABLED,
+    resourceType: 'user',
+    resourceId: req.user.userId,
+    req,
+  });
+
   logger.info({ userId: req.user.userId }, '2FA disabled successfully');
   res.json({ enabled: false });
 });
 
+// --- CLI endpoints (unchanged) ---
 router.post('/cli/initiate', async (req, res) => {
   const userCode = crypto.randomBytes(3).toString('hex').toUpperCase().slice(0, 6);
   const deviceCode = crypto.randomBytes(16).toString('hex');
@@ -666,7 +808,7 @@ router.post('/cli/initiate', async (req, res) => {
     userId: null,
     createdAt: Date.now(),
   });
-  res.json({ userCode, deviceCode, expiresIn: 600 }); 
+  res.json({ userCode, deviceCode, expiresIn: 600 });
 });
 
 router.post('/cli/approve', requireAuth, async (req, res) => {
@@ -690,7 +832,6 @@ router.get('/cli/status/:deviceCode', async (req, res) => {
   }
 
   if (data.status === 'approved') {
-    // Fetch the user's email from the database
     const { data: user, error } = await supabase
       .from('users')
       .select('email')
@@ -702,7 +843,6 @@ router.get('/cli/status/:deviceCode', async (req, res) => {
       return res.status(500).json({ error: 'User not found' });
     }
 
-    // Generate a JWT for CLI use (long-lived)
     const token = jwt.sign(
       { userId: data.userId, email: user.email },
       process.env.JWT_SECRET,

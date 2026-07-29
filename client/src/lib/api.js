@@ -124,4 +124,8 @@ export const api = {
       }),
     get: (token) => request(`/api/share/${token}`),
   },
+
+  audit: {
+  list: (companySlug) => request(`/api/audit/${companySlug}`),
+},
 };

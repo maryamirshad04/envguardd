@@ -7,6 +7,14 @@ const { encrypt, decrypt } = require('../utils/crypto');
 const { sendInviteEmail } = require('../config/mailjet');
 const logger = require('../utils/logger');
 const { maskEmail, generateUniqueSlug } = require('../utils/helpers');
+const { logAuditEvent } = require('../utils/audit');
+const {
+  SECRET_CREATED, SECRET_UPDATED, SECRET_DELETED, SECRET_IMPORTED,
+  PROJECT_CREATED, PROJECT_DELETED,
+  COMPANY_CREATED, COMPANY_DELETED,
+  INVITE_SENT, INVITE_REVOKED,
+  ENVIRONMENT_CREATED
+} = require('../constants/auditActions');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -68,11 +76,25 @@ router.post('/', async (req, res) => {
     return res.status(500).json({ error: memberError.message });
   }
 
+  // AUDIT: Company created
+  await logAuditEvent({
+    actorId: req.user.userId,
+    action: COMPANY_CREATED,
+    resourceType: 'company',
+    resourceId: company.id,
+    metadata: {
+      name: company.name,
+      slug: company.slug,
+      companyId: company.id,
+    },
+    req,
+  });
+
   res.status(201).json({ company: { ...company, role: 'admin' } });
 });
 
 router.get('/:companySlug', requireMember, async (req, res) => {
-  const companyId = req.companyId; // resolved by middleware
+  const companyId = req.companyId;
   logger.info({ userId: req.user.userId, companyId }, 'Fetching company details');
 
   const { data: company, error } = await supabase
@@ -122,6 +144,16 @@ router.delete('/:companySlug', requireMember, requireAdmin, async (req, res) => 
     logger.error({ userId: req.user.userId, companyId, error: error.message }, 'Failed to delete company');
     return res.status(500).json({ error: error.message });
   }
+
+  // AUDIT: Company deleted
+  await logAuditEvent({
+    actorId: req.user.userId,
+    action: COMPANY_DELETED,
+    resourceType: 'company',
+    resourceId: companyId,
+    metadata: { companyId },
+    req,
+  });
 
   res.status(204).send();
 });
@@ -224,6 +256,20 @@ router.post('/:companySlug/invites', requireMember, requireAdmin, async (req, re
     });
   }
 
+  // AUDIT: Invite sent
+  await logAuditEvent({
+    actorId: req.user.userId,
+    action: INVITE_SENT,
+    resourceType: 'invite',
+    resourceId: invite.id,
+    metadata: {
+      email: maskedEmail,
+      role: invite.role,
+      companyId,
+    },
+    req,
+  });
+
   res.status(201).json({ invite });
 });
 
@@ -242,6 +288,16 @@ router.delete('/:companySlug/invites/:inviteId', requireMember, requireAdmin, as
     logger.error({ userId: req.user.userId, companyId, inviteId, error: error.message }, 'Failed to revoke invite');
     return res.status(500).json({ error: error.message });
   }
+
+  // AUDIT: Invite revoked
+  await logAuditEvent({
+    actorId: req.user.userId,
+    action: INVITE_REVOKED,
+    resourceType: 'invite',
+    resourceId: inviteId,
+    metadata: { companyId },
+    req,
+  });
 
   res.status(204).send();
 });
@@ -306,6 +362,19 @@ router.post('/:companySlug/projects', requireMember, async (req, res) => {
   await supabase
     .from('environments')
     .insert(['development', 'staging', 'production'].map((n) => ({ project_id: data.id, name: n })));
+
+  // AUDIT: Project created
+  await logAuditEvent({
+    actorId: req.user.userId,
+    action: PROJECT_CREATED,
+    resourceType: 'project',
+    resourceId: data.id,
+    metadata: {
+      name: data.name,
+      companyId,
+    },
+    req,
+  });
 
   res.status(201).json({ project: data });
 });
@@ -380,6 +449,19 @@ router.delete('/:companySlug/projects/:projectSlug', requireMember, async (req, 
     return res.status(500).json({ error: error.message });
   }
 
+  // AUDIT: Project deleted
+  await logAuditEvent({
+    actorId: req.user.userId,
+    action: PROJECT_DELETED,
+    resourceType: 'project',
+    resourceId: project.id,
+    metadata: {
+      name: project.name,
+      companyId,
+    },
+    req,
+  });
+
   res.status(204).send();
 });
 
@@ -425,6 +507,20 @@ router.post('/:companySlug/projects/:projectSlug/environments', requireMember, a
     logger.error({ userId: req.user.userId, projectId: project.id, error: error.message }, 'Failed to create environment');
     return res.status(500).json({ error: error.message });
   }
+
+  // AUDIT: Environment created
+  await logAuditEvent({
+    actorId: req.user.userId,
+    action: ENVIRONMENT_CREATED,
+    resourceType: 'environment',
+    resourceId: data.id,
+    metadata: {
+      name: data.name,
+      project: project.id,
+      companyId,
+    },
+    req,
+  });
 
   res.status(201).json({ environment: data });
 });
@@ -521,6 +617,21 @@ router.post('/:companySlug/projects/:projectSlug/environments/:envId/variables',
     return res.status(500).json({ error: error.message });
   }
 
+  // AUDIT: Secret updated (or created, but we'll treat as update for now)
+  await logAuditEvent({
+    actorId: req.user.userId,
+    action: SECRET_UPDATED,
+    resourceType: 'secret',
+    resourceId: data.id,
+    metadata: {
+      key,
+      environment: envId,
+      is_secret: data.is_secret,
+      companyId,
+    },
+    req,
+  });
+
   res.status(201).json({
     variable: { id: data.id, key: data.key, value, is_secret: data.is_secret, updated_at: data.updated_at },
   });
@@ -536,6 +647,16 @@ router.delete('/:companySlug/projects/:projectSlug/environments/:envId/variables
     return res.status(404).json({ error: 'Environment not found' });
   }
 
+  // Fetch the key before deletion for audit metadata
+  const { data: variable, error: fetchError } = await supabase
+    .from('env_variables')
+    .select('key')
+    .eq('id', varId)
+    .eq('environment_id', env.id)
+    .single();
+
+  const key = variable?.key || 'unknown';
+
   const { error } = await supabase
     .from('env_variables')
     .delete()
@@ -546,6 +667,20 @@ router.delete('/:companySlug/projects/:projectSlug/environments/:envId/variables
     logger.error({ userId: req.user.userId, envId: env.id, varId, error: error.message }, 'Failed to delete variable');
     return res.status(500).json({ error: error.message });
   }
+
+  // AUDIT: Secret deleted
+  await logAuditEvent({
+    actorId: req.user.userId,
+    action: SECRET_DELETED,
+    resourceType: 'secret',
+    resourceId: varId,
+    metadata: {
+      key,
+      environment: envId,
+      companyId,
+    },
+    req,
+  });
 
   res.status(204).send();
 });
@@ -596,6 +731,20 @@ router.post('/:companySlug/projects/:projectSlug/environments/:envId/variables/b
     is_secret: v.is_secret,
     updated_at: v.updated_at,
   }));
+
+  // AUDIT: Secret imported (bulk)
+  await logAuditEvent({
+    actorId: req.user.userId,
+    action: SECRET_IMPORTED,
+    resourceType: 'environment',
+    resourceId: env.id,
+    metadata: {
+      count: resultVariables.length,
+      keys: resultVariables.map(v => v.key),
+      companyId,
+    },
+    req,
+  });
 
   res.status(201).json({ variables: resultVariables });
 });

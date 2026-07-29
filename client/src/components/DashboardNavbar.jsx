@@ -30,6 +30,9 @@ export default function DashboardNavbar() {
 
   const activeCompany = companies.find((c) => c.id === companyId);
 
+  // Optional: debug – remove after verifying
+  // console.log('user.is_admin', user?.is_admin, 'companyId', companyId);
+
   async function handleCreateCompany(e) {
     e.preventDefault();
     if (!newName.trim()) return;
@@ -65,7 +68,6 @@ export default function DashboardNavbar() {
               <span className="align-middle">envguard</span>
             </Link>
 
-            {/* Company switcher */}
             <div className="relative">
               <button
                 onClick={() => setCompanyMenuOpen((v) => !v)}
@@ -108,7 +110,6 @@ export default function DashboardNavbar() {
             </div>
           </div>
 
-          {/* Right: user dropdown */}
           <div className="relative shrink-0 self-end sm:self-auto">
             <button
               onClick={() => setUserMenuOpen((v) => !v)}
@@ -133,6 +134,15 @@ export default function DashboardNavbar() {
                   >
                     Settings
                   </Link>
+                  {user?.is_admin && companyId && (
+                    <Link
+                      href={`/dashboard/audit?companyId=${companyId}`}
+                      onClick={() => setUserMenuOpen(false)}
+                      className="block w-full px-3 py-2 text-left text-sm text-mist hover:bg-ink hover:text-paper"
+                    >
+                      Audit Logs
+                    </Link>
+                  )}
                   <button
                     onClick={logout}
                     className="block w-full border-t border-line px-3 py-2 text-left text-sm text-mist hover:bg-ink hover:text-paper"
