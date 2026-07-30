@@ -124,7 +124,15 @@ export default function ProjectDetailPage() {
       </Link>
 
       <p className="mt-4 font-mono text-xs uppercase tracking-wider text-signal">Project</p>
-      <h1 className="mt-2 text-2xl font-semibold text-paper">{project?.name}</h1>
+      <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
+  <h1 className="text-2xl font-semibold text-paper">{project?.name}</h1>
+  <Link
+    href={`/dashboard/${companySlug}/projects/${projectSlug}/compare`}
+    className="rounded-sm border border-line px-3 py-1.5 text-xs text-mist hover:border-signal/40 hover:text-paper"
+  >
+    Compare environments
+  </Link>
+</div>
 
       <EnvironmentSection
         environments={environments}

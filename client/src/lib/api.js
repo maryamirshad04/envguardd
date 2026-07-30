@@ -133,4 +133,23 @@ export const api = {
     return request(`/api/audit/${companySlug}?${params.toString()}`);
   },
 },
+
+  compare: {
+  get: (companySlug, projectSlug, { source, target, page = 1, pageSize = 15, q = '', status = 'all' }) => {
+    const params = new URLSearchParams({ source, target, page, pageSize });
+    if (q) params.set('q', q);
+    if (status && status !== 'all') params.set('status', status);
+    return request(`/api/companies/${companySlug}/projects/${projectSlug}/compare?${params.toString()}`);
+  },
+  reveal: (companySlug, projectSlug, environmentId, varId) =>
+    request(`/api/companies/${companySlug}/projects/${projectSlug}/compare/reveal`, {
+      method: 'POST',
+      body: JSON.stringify({ environmentId, varId }),
+    }),
+  sync: (companySlug, projectSlug, sourceEnvId, targetEnvId, keys) =>
+    request(`/api/companies/${companySlug}/projects/${projectSlug}/compare/sync`, {
+      method: 'POST',
+      body: JSON.stringify({ sourceEnvId, targetEnvId, keys }),
+    }),
+},
 };

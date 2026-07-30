@@ -169,7 +169,7 @@ router.post('/share', requireAuth, async (req, res) => {
       variableKeys: variableKeys || 'all',
       expiryMinutes,
       token: token.substring(0, 8) + '...',
-      companyId: resolvedCompanyId, // Added companyId for filtering
+      companyId: resolvedCompanyId, 
     },
     req,
   });
@@ -218,17 +218,14 @@ router.get('/share/:token', async (req, res) => {
     return res.status(500).json({ error: 'Failed to decrypt data' });
   }
 
-  // AUDIT: Share link accessed (actorId null, but we can include some metadata)
   logAuditEvent({
-    actorId: null, // not authenticated
+    actorId: null, 
     action: SHARE_LINK_ACCESSED,
     resourceType: 'share_link',
     resourceId: link.id,
     metadata: {
       token: token.substring(0, 8) + '...',
       varCount: decrypted.length,
-      // We don't have companyId here, but we could optionally fetch it from the environment if needed.
-      // For now, we omit it as we don't have it.
     },
     req,
   });

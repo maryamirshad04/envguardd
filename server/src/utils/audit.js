@@ -1,9 +1,6 @@
 const supabase = require('../config/supabase');
 const logger = require('./logger');
 
-/**
- * Log an immutable audit event.
- */
 async function logAuditEvent({ actorId, action, resourceType, resourceId, metadata, req }) {
   try {
     const ip = req?.ip || req?.socket?.remoteAddress || null;

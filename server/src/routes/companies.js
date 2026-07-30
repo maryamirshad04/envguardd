@@ -9,11 +9,11 @@ const logger = require('../utils/logger');
 const { maskEmail, generateUniqueSlug } = require('../utils/helpers');
 const { logAuditEvent } = require('../utils/audit');
 const {
-  SECRET_CREATED, SECRET_UPDATED, SECRET_DELETED, SECRET_IMPORTED,
+  SECRET_CREATED, SECRET_UPDATED, SECRET_DELETED, SECRET_IMPORTED, SECRET_REVEALED, SECRET_SYNCED,
   PROJECT_CREATED, PROJECT_DELETED,
   COMPANY_CREATED, COMPANY_DELETED,
   INVITE_SENT, INVITE_REVOKED,
-  ENVIRONMENT_CREATED
+  ENVIRONMENT_CREATED, ENVIRONMENT_COMPARED
 } = require('../constants/auditActions');
 
 const router = express.Router();
@@ -747,6 +747,246 @@ router.post('/:companySlug/projects/:projectSlug/environments/:envId/variables/b
   });
 
   res.status(201).json({ variables: resultVariables });
+});
+
+// ---------- ENVIRONMENT COMPARISON ----------
+function fingerprintValue(value) {
+  return crypto.createHash('sha256').update(String(value)).digest('hex');
+}
+
+async function getDecryptedVariablesForEnv(envId) {
+  const { data, error } = await supabase
+    .from('env_variables')
+    .select('*')
+    .eq('environment_id', envId);
+  if (error) throw new Error(error.message);
+  return data.map((v) => ({
+    id: v.id,
+    key: v.key,
+    value: decrypt(v.value_encrypted),
+    is_secret: v.is_secret,
+    updated_at: v.updated_at,
+  }));
+}
+
+function classifyDiff(sourceVar, targetVar) {
+  if (sourceVar && !targetVar) return 'missing_from_target';
+  if (!sourceVar && targetVar) return 'missing_from_source';
+  if (fingerprintValue(sourceVar.value) !== fingerprintValue(targetVar.value)) return 'different_value';
+  if ((sourceVar.is_secret !== false) !== (targetVar.is_secret !== false)) return 'different_protection';
+  return 'same';
+}
+
+const COMPARE_PAGE_SIZE_DEFAULT = 15;
+const COMPARE_PAGE_SIZE_MAX = 100;
+
+// GET /:companySlug/projects/:projectSlug/compare?source=&target=&page=&pageSize=&q=&status=
+router.get('/:companySlug/projects/:projectSlug/compare', requireMember, async (req, res) => {
+  const companyId = req.companyId;
+  const { projectSlug } = req.params;
+  const { source, target } = req.query;
+
+  if (!source || !target) {
+    return res.status(400).json({ error: 'source and target environment IDs are required' });
+  }
+  if (source === target) {
+    return res.status(400).json({ error: 'Source and target environments must be different' });
+  }
+
+  const project = await getCompanyProject(companyId, projectSlug);
+  if (!project) {
+    return res.status(404).json({ error: 'Project not found' });
+  }
+
+  const sourceEnv = await getCompanyEnvironment(companyId, projectSlug, source);
+  const targetEnv = await getCompanyEnvironment(companyId, projectSlug, target);
+  if (!sourceEnv || !targetEnv) {
+    return res.status(404).json({ error: 'Environment not found' });
+  }
+
+  let sourceVars, targetVars;
+  try {
+    [sourceVars, targetVars] = await Promise.all([
+      getDecryptedVariablesForEnv(sourceEnv.id),
+      getDecryptedVariablesForEnv(targetEnv.id),
+    ]);
+  } catch (err) {
+    logger.error({ userId: req.user.userId, error: err.message }, 'Failed to load variables for comparison');
+    return res.status(500).json({ error: err.message });
+  }
+
+  const sourceByKey = new Map(sourceVars.map((v) => [v.key, v]));
+  const targetByKey = new Map(targetVars.map((v) => [v.key, v]));
+  const allKeys = new Set([...sourceByKey.keys(), ...targetByKey.keys()]);
+
+  let rows = Array.from(allKeys).sort().map((key) => {
+    const sVar = sourceByKey.get(key) || null;
+    const tVar = targetByKey.get(key) || null;
+    const status = classifyDiff(sVar, tVar);
+
+    const sourcePlain = sVar && sVar.is_secret === false;
+    const targetPlain = tVar && tVar.is_secret === false;
+
+    return {
+      key,
+      status,
+      source: sVar
+        ? { id: sVar.id, is_secret: sVar.is_secret, value: sourcePlain ? sVar.value : null, updated_at: sVar.updated_at }
+        : null,
+      target: tVar
+        ? { id: tVar.id, is_secret: tVar.is_secret, value: targetPlain ? tVar.value : null, updated_at: tVar.updated_at }
+        : null,
+    };
+  });
+
+  const statusFilter = (req.query.status || 'all').trim();
+  if (statusFilter && statusFilter !== 'all') {
+    rows = rows.filter((r) => r.status === statusFilter);
+  }
+
+  const q = (req.query.q || '').trim().toLowerCase();
+  if (q) {
+    rows = rows.filter((r) => r.key.toLowerCase().includes(q));
+  }
+
+  const summary = { same: 0, missing_from_target: 0, missing_from_source: 0, different_value: 0, different_protection: 0 };
+  for (const r of rows) summary[r.status] = (summary[r.status] || 0) + 1;
+
+  const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+  const pageSize = Math.min(
+    COMPARE_PAGE_SIZE_MAX,
+    Math.max(1, parseInt(req.query.pageSize, 10) || COMPARE_PAGE_SIZE_DEFAULT)
+  );
+  const total = rows.length;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const pageSafe = Math.min(page, totalPages);
+  const from = (pageSafe - 1) * pageSize;
+  const paginated = rows.slice(from, from + pageSize);
+
+  logAuditEvent({
+    actorId: req.user.userId,
+    action: ENVIRONMENT_COMPARED,
+    resourceType: 'environment',
+    resourceId: sourceEnv.id,
+    metadata: { sourceEnv: sourceEnv.id, targetEnv: targetEnv.id, project: project.id, companyId },
+    req,
+  });
+
+  res.json({
+    rows: paginated,
+    summary,
+    pagination: { page: pageSafe, pageSize, total, totalPages },
+    environments: { source: sourceEnv, target: targetEnv },
+  });
+});
+
+// POST /:companySlug/projects/:projectSlug/compare/reveal  { environmentId, varId }
+router.post('/:companySlug/projects/:projectSlug/compare/reveal', requireMember, async (req, res) => {
+  const companyId = req.companyId;
+  const { projectSlug } = req.params;
+  const { environmentId, varId } = req.body;
+
+  if (!environmentId || !varId) {
+    return res.status(400).json({ error: 'environmentId and varId are required' });
+  }
+
+  const env = await getCompanyEnvironment(companyId, projectSlug, environmentId);
+  if (!env) {
+    return res.status(404).json({ error: 'Environment not found' });
+  }
+
+  const { data: variable, error } = await supabase
+    .from('env_variables')
+    .select('*')
+    .eq('id', varId)
+    .eq('environment_id', env.id)
+    .single();
+
+  if (error || !variable) {
+    return res.status(404).json({ error: 'Variable not found' });
+  }
+
+  const value = decrypt(variable.value_encrypted);
+
+  logAuditEvent({
+    actorId: req.user.userId,
+    action: SECRET_REVEALED,
+    resourceType: 'secret',
+    resourceId: variable.id,
+    metadata: { key: variable.key, environment: env.id, companyId, context: 'compare' },
+    req,
+  });
+
+  res.json({ value });
+});
+
+// POST /:companySlug/projects/:projectSlug/compare/sync  { sourceEnvId, targetEnvId, keys: [] }
+router.post('/:companySlug/projects/:projectSlug/compare/sync', requireMember, async (req, res) => {
+  const companyId = req.companyId;
+  const { projectSlug } = req.params;
+  const { sourceEnvId, targetEnvId, keys } = req.body;
+
+  if (!sourceEnvId || !targetEnvId) {
+    return res.status(400).json({ error: 'sourceEnvId and targetEnvId are required' });
+  }
+  if (sourceEnvId === targetEnvId) {
+    return res.status(400).json({ error: 'Source and target environments must be different' });
+  }
+  if (!Array.isArray(keys) || keys.length === 0) {
+    return res.status(400).json({ error: 'No keys selected to sync' });
+  }
+
+  const sourceEnv = await getCompanyEnvironment(companyId, projectSlug, sourceEnvId);
+  const targetEnv = await getCompanyEnvironment(companyId, projectSlug, targetEnvId);
+  if (!sourceEnv || !targetEnv) {
+    return res.status(404).json({ error: 'Environment not found' });
+  }
+
+  const { data: sourceRows, error: sourceErr } = await supabase
+    .from('env_variables')
+    .select('*')
+    .eq('environment_id', sourceEnv.id)
+    .in('key', keys);
+
+  if (sourceErr) {
+    logger.error({ userId: req.user.userId, error: sourceErr.message }, 'Failed to load source variables for sync');
+    return res.status(500).json({ error: sourceErr.message });
+  }
+
+  const foundKeys = new Set(sourceRows.map((r) => r.key));
+  const missing = keys.filter((k) => !foundKeys.has(k));
+  if (missing.length > 0) {
+    return res.status(400).json({ error: `These keys no longer exist in the source environment: ${missing.join(', ')}` });
+  }
+
+  const rows = sourceRows.map((r) => ({
+    environment_id: targetEnv.id,
+    key: r.key,
+    value_encrypted: r.value_encrypted,
+    is_secret: r.is_secret,
+    updated_at: new Date().toISOString(),
+  }));
+
+  const { error: upsertErr } = await supabase
+    .from('env_variables')
+    .upsert(rows, { onConflict: 'environment_id,key' });
+
+  if (upsertErr) {
+    logger.error({ userId: req.user.userId, error: upsertErr.message }, 'Failed to sync variables');
+    return res.status(500).json({ error: upsertErr.message });
+  }
+
+  // AUDIT: environments, keys, and actor — never values
+  logAuditEvent({
+    actorId: req.user.userId,
+    action: SECRET_SYNCED,
+    resourceType: 'environment',
+    resourceId: targetEnv.id,
+    metadata: { sourceEnv: sourceEnv.id, targetEnv: targetEnv.id, keys, count: keys.length, companyId },
+    req,
+  });
+
+  res.status(200).json({ synced: keys.length });
 });
 
 module.exports = router;
