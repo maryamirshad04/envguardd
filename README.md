@@ -13,6 +13,8 @@ The **EnvGuard CLI** gives developers the same power directly from their termina
 - [What this is](#what-this-is)
 - [Features](#features)
 - [Tech Stack](#tech-stack)
+- [Admin Audit Logs](#admin-audit-logs)
+- [Compare Environments](#compare-environments)
 - [Architecture](#architecture)
 - [Getting Started](#getting-started)
   - [1. Prerequisites](#1-prerequisites)
@@ -40,6 +42,8 @@ EnvGuard replaces that workflow with a secure centralized solution.
 - **Projects & Environments** – Organize secrets into projects with Development, Staging, Production, and custom environments.
 - **Encrypted Variables** – Environment variables are encrypted using **AES-256-GCM** before being stored.
 - **One-Time Share Links** – Securely share variables through single-use, expiring links.
+- **Admin Audit Logs** – Every security-relevant action is recorded in an immutable audit log that is only accessible to project administrators.
+- **Environment Comparison & Sync** – Compare variables between two environments, identify differences, and securely synchronize selected variables.
 - **Command Line Interface** – Manage everything directly from the terminal without opening the web dashboard.
 
 ---
@@ -63,6 +67,8 @@ EnvGuard replaces that workflow with a secure centralized solution.
 - Copy Entire Environment
 - One-Time Secret Sharing
 - Expiring Share Links
+- Admin Audit Logs
+- Environment Comparison & Sync
 - Structured Logging with Pino
 - Complete CLI Support
 
@@ -95,6 +101,65 @@ User
                   ├── Variables
                   └── One-Time Share Links
 ```
+
+---
+
+# Admin Audit Logs
+
+Every security-sensitive action performed within EnvGuard is automatically recorded in an immutable audit log.
+
+### Recorded Events
+
+- Secret creation
+- Secret updates
+- Secret deletion
+- Secret reveal
+- Share link creation
+- Environment exports
+- User logins
+- Other security-relevant actions
+
+Each audit entry records:
+
+- User (actor)
+- Action performed
+- Affected resource
+- Timestamp
+- IP address
+- User agent
+
+### Access Control
+
+Audit Logs are available **only to administrators**.
+
+- Every team displays an **Audit Logs** button for admins.
+- Team members cannot view or access audit logs.
+- Audit entries are immutable and cannot be modified through the application.
+
+---
+
+# Compare Environments
+
+EnvGuard allows users to compare variables between two environments (for example, Development and Production) before synchronizing changes.
+
+### Comparison Results
+
+Variables are automatically classified as:
+
+- Same
+- Missing from target
+- Missing from source
+- Different value
+- Different protection setting
+
+Users can select any variables and securely copy them from the source environment to the target environment after confirming the changes.
+
+### Security
+
+- Protected variables remain hidden by default.
+- Comparisons use encrypted-value fingerprints, allowing values to be compared without exposing secret contents to the browser.
+- Revealing a protected value remains an explicit, audited action.
+- Audit logs record the source environment, target environment, affected variable keys, and the acting user can never see the secret values themselves.
 
 ---
 

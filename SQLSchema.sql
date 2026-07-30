@@ -178,5 +178,50 @@ CREATE INDEX idx_projects_slug ON projects(slug);
 
 SELECT id, name, slug FROM companies;
 SELECT id, name, slug FROM projects;
-
 SELECT id, name, slug FROM companies;
+
+ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin BOOLEAN DEFAULT FALSE;
+
+CREATE TABLE IF NOT EXISTS audit_logs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  actor_id UUID REFERENCES users(id) ON DELETE SET NULL,
+  action TEXT NOT NULL,
+  resource_type TEXT,
+  resource_id UUID,
+  metadata JSONB,
+  ip_address TEXT,
+  user_agent TEXT,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+ALTER TABLE audit_logs ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Service role can insert audit logs"
+  ON audit_logs FOR INSERT
+  WITH CHECK (true);
+
+CREATE POLICY "No updates on audit_logs"
+  ON audit_logs FOR UPDATE
+  USING (false);
+
+CREATE POLICY "No deletes on audit_logs"
+  ON audit_logs FOR DELETE
+  USING (false);
+
+CREATE POLICY "Admins can view audit logs"
+  ON audit_logs FOR SELECT
+  USING (
+    auth.uid() IN (SELECT id FROM users WHERE is_admin = true)
+  );
+
+CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at ON audit_logs(created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_audit_logs_resource_id ON audit_logs(resource_id);
+
+CREATE INDEX IF NOT EXISTS idx_audit_logs_metadata_company_id ON audit_logs((metadata->>'companyId'));
+
+CREATE INDEX IF NOT EXISTS idx_audit_logs_action ON audit_logs(action);
+
+CREATE INDEX IF NOT EXISTS idx_audit_logs_actor_id ON audit_logs(actor_id);
+
+CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
