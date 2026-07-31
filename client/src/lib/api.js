@@ -160,7 +160,10 @@ passkeys: {
         method: 'POST',
         body: JSON.stringify({ response, name }),
       }),
-    loginOptions: () => request('/api/auth/passkey/login/options', { method: 'POST' }),
+    status: (email) =>
+      request('/api/auth/passkey/status', { method: 'POST', body: JSON.stringify({ email }) }),
+    loginOptions: (email) =>
+      request('/api/auth/passkey/login/options', { method: 'POST', body: JSON.stringify({ email }) }),
     loginVerify: (response) =>
       request('/api/auth/passkey/login/verify', { method: 'POST', body: JSON.stringify({ response }) }),
     list: () => request('/api/auth/passkey/list'),

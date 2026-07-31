@@ -942,12 +942,60 @@ router.post('/passkey/register/verify', requireAuth, async (req, res) => {
   res.json({ registered: true });
 });
 
-// --- PASSKEY: login options (public, usernameless/discoverable) ---
+// --- PASSKEY: does this email have a passkey set up? ---
+router.post('/passkey/status', async (req, res) => {
+  const { email } = req.body;
+  if (!email?.trim()) {
+    return res.status(400).json({ error: 'Email is required' });
+  }
+
+  const { data: user } = await supabase
+    .from('users')
+    .select('id')
+    .eq('email', email.trim())
+    .single();
+
+  if (!user) {
+    return res.json({ hasPasskey: false });
+  }
+
+  const { data: passkeys, error } = await supabase
+    .from('passkeys')
+    .select('id')
+    .eq('user_id', user.id)
+    .limit(1);
+
+  if (error) {
+    logger.error({ error: error.message }, 'Passkey status check error');
+    return res.status(500).json({ error: error.message });
+  }
+
+  res.json({ hasPasskey: (passkeys || []).length > 0 });
+});
+
+// --- PASSKEY: login options (email-scoped) ---
 router.post('/passkey/login/options', async (req, res) => {
+  const { email } = req.body;
+  let allowCredentials;
+
+  if (email?.trim()) {
+    const { data: user } = await supabase.from('users').select('id').eq('email', email.trim()).single();
+    if (user) {
+      const { data: passkeys } = await supabase
+        .from('passkeys')
+        .select('credential_id, transports')
+        .eq('user_id', user.id);
+      allowCredentials = (passkeys || []).map((p) => ({
+        id: p.credential_id,
+        transports: p.transports || undefined,
+      }));
+    }
+  }
+
   const options = await generateAuthenticationOptions({
     rpID: RP_ID,
     userVerification: 'preferred',
-    // No allowCredentials -> browser prompts with any discoverable passkey for this RP.
+    allowCredentials,
   });
 
   try {

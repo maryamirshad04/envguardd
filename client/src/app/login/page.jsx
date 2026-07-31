@@ -3,8 +3,9 @@
 import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { startAuthentication, browserSupportsWebAuthn } from '@simplewebauthn/browser';
+import { startAuthentication, startRegistration, browserSupportsWebAuthn } from '@simplewebauthn/browser';
 import { api } from '@/lib/api';
+import Modal from '@/components/Modal';
 import GoogleSignInButton from '@/components/GoogleSignInButton';
 import Alert from '@/components/Alert';
 import Spinner from '@/components/Spinner';
@@ -78,10 +79,22 @@ function LoginForm() {
 
   const [passkeySupported, setPasskeySupported] = useState(false);
   const [passkeyLoading, setPasskeyLoading] = useState(false);
+  const [noPasskeyModalOpen, setNoPasskeyModalOpen] = useState(false);
+  const [offerPasskeySetup, setOfferPasskeySetup] = useState(false);
+  const [passkeySetupPromptOpen, setPasskeySetupPromptOpen] = useState(false);
+  const [passkeySettingUp, setPasskeySettingUp] = useState(false);
 
   useEffect(() => {
     setPasskeySupported(browserSupportsWebAuthn());
   }, []);
+
+  function completeLogin() {
+    if (offerPasskeySetup) {
+      setPasskeySetupPromptOpen(true);
+    } else {
+      router.push(redirect);
+    }
+  }
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -92,7 +105,7 @@ function LoginForm() {
       if (res.requires2fa) {
         setTempToken(res.tempToken);
       } else {
-        router.push(redirect);
+        completeLogin();
       }
     } catch (err) {
       setError(err.message);
@@ -107,7 +120,7 @@ function LoginForm() {
     setLoading(true);
     try {
       await api.verifyLogin2fa(tempToken, code);
-      router.push(redirect);
+      completeLogin();
     } catch (err) {
       setError(err.message);
     } finally {
@@ -120,7 +133,7 @@ function LoginForm() {
     setLoading(true);
     try {
       await api.googleLogin(credential);
-      router.push(redirect);
+      completeLogin();
     } catch (err) {
       setError(err.message);
     } finally {
@@ -130,9 +143,19 @@ function LoginForm() {
 
   async function handlePasskeyLogin() {
     setError('');
+    if (!email.trim()) {
+      setError('Enter your email first, then tap "Sign in with a passkey".');
+      return;
+    }
     setPasskeyLoading(true);
     try {
-      const options = await api.passkeys.loginOptions();
+      const { hasPasskey } = await api.passkeys.status(email.trim());
+      if (!hasPasskey) {
+        setOfferPasskeySetup(true);
+        setNoPasskeyModalOpen(true);
+        return;
+      }
+      const options = await api.passkeys.loginOptions(email.trim());
       const authResponse = await startAuthentication({ optionsJSON: options });
       await api.passkeys.loginVerify(authResponse);
       router.push(redirect);
@@ -144,6 +167,33 @@ function LoginForm() {
       setPasskeyLoading(false);
     }
   }
+
+  async function handleSetupPasskeyNow() {
+    setError('');
+    setPasskeySettingUp(true);
+    try {
+      const options = await api.passkeys.registerOptions();
+      const regResponse = await startRegistration({ optionsJSON: options });
+      await api.passkeys.registerVerify(regResponse);
+    } catch (err) {
+      if (err.name !== 'NotAllowedError') {
+        setError(err.message || 'Could not set up passkey. Please try again.');
+      }
+    } finally {
+      setPasskeySettingUp(false);
+      setPasskeySetupPromptOpen(false);
+      router.push(redirect);
+    }
+  }
+
+  function handleSkipPasskeySetup() {
+    setPasskeySetupPromptOpen(false);
+    router.push(redirect);
+  }
+
+  // Shared button styles for consistency
+  const buttonClasses =
+    'flex w-full items-center justify-center gap-2 rounded-sm border border-line bg-ink px-4 py-2 text-sm font-medium text-paper hover:border-signal disabled:opacity-50';
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-ink px-6">
@@ -163,16 +213,20 @@ function LoginForm() {
             <p className="mt-1 text-sm text-mist">Log in to access your projects.</p>
 
             <div className="mt-6 space-y-2">
-              <GoogleSignInButton onCredential={handleGoogleCredential} onError={setError} />
+              <GoogleSignInButton
+                onCredential={handleGoogleCredential}
+                onError={setError}
+                className={buttonClasses}
+              />
               {passkeySupported && (
                 <button
                   type="button"
                   onClick={handlePasskeyLogin}
                   disabled={passkeyLoading}
-                  className="flex w-full items-center justify-center gap-2 rounded-sm border border-line bg-ink px-4 py-2 text-sm font-medium text-paper hover:border-signal disabled:opacity-50"
+                  className={buttonClasses}
                 >
                   {passkeyLoading ? <Spinner className="h-4 w-4" /> : <KeyIcon />}
-                  {passkeyLoading ? 'Waiting for your passkey...' : 'Sign in with a passkey'}
+                  {passkeyLoading ? 'Checking...' : 'Sign in with a passkey'}
                 </button>
               )}
             </div>
@@ -192,7 +246,7 @@ function LoginForm() {
                   id="email"
                   type="email"
                   required
-                  autoComplete="username webauthn"
+                  autoComplete="username"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   onFocus={() => setError('')}
@@ -255,7 +309,7 @@ function LoginForm() {
           <>
             <h1 className="mt-6 text-2xl font-semibold text-paper">Enter your code</h1>
             <p className="mt-1 text-sm text-mist">
-              Open your authenticator app and enter the 6-digit code for EnvGuard.
+              Open your authenticator app and enter the 6‑digit code for EnvGuard.
             </p>
 
             <form onSubmit={handleVerifyCode} className="mt-8 space-y-4">
@@ -295,6 +349,63 @@ function LoginForm() {
           </>
         )}
       </div>
+
+      {/* Modal shown when a user tries passkey login but doesn't have a passkey yet */}
+      <Modal
+        open={noPasskeyModalOpen}
+        onClose={() => setNoPasskeyModalOpen(false)}
+        title="Passkey not set up"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-mist">
+            This account doesn&apos;t have a passkey yet. To set one up, please log in with your password first.
+            After logging in, you&apos;ll be offered to create a passkey for faster sign‑in next time.
+          </p>
+          <div className="flex flex-col gap-2 sm:flex-row sm:gap-3">
+            <button
+              onClick={() => setNoPasskeyModalOpen(false)}
+              className="flex-1 rounded-sm bg-signal px-4 py-2 text-sm font-medium text-ink hover:bg-signal/90"
+            >
+              Log in with password
+            </button>
+            <button
+              onClick={() => setNoPasskeyModalOpen(false)}
+              className="flex-1 rounded-sm border border-line px-4 py-2 text-sm text-mist hover:text-paper"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Modal shown after a successful login to offer passkey setup */}
+      <Modal
+        open={passkeySetupPromptOpen}
+        onClose={handleSkipPasskeySetup}
+        title="Set up a passkey?"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-mist">
+            Sign in next time with your fingerprint, face, or device PIN — no password needed.
+          </p>
+          {error && <Alert variant="error">{error}</Alert>}
+          <div className="flex flex-col gap-2 sm:flex-row sm:gap-3">
+            <button
+              onClick={handleSetupPasskeyNow}
+              disabled={passkeySettingUp}
+              className="flex-1 rounded-sm bg-signal px-4 py-2 text-sm font-medium text-ink hover:bg-signal/90 disabled:opacity-50"
+            >
+              {passkeySettingUp ? 'Waiting for your device...' : 'Set up a passkey'}
+            </button>
+            <button
+              onClick={handleSkipPasskeySetup}
+              className="flex-1 rounded-sm border border-line px-4 py-2 text-sm text-mist hover:text-paper"
+            >
+              Skip for now
+            </button>
+          </div>
+        </div>
+      </Modal>
     </main>
   );
 }
