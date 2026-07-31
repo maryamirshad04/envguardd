@@ -225,3 +225,28 @@ CREATE INDEX IF NOT EXISTS idx_audit_logs_action ON audit_logs(action);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_actor_id ON audit_logs(actor_id);
 
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+
+create table if not exists passkeys (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references users(id) on delete cascade,
+  credential_id text not null unique,
+  public_key text not null,
+  counter bigint not null default 0,
+  device_type text,
+  backed_up boolean not null default false,
+  transports text[],
+  name text not null default 'Passkey',
+  created_at timestamptz not null default now(),
+  last_used_at timestamptz
+);
+create index if not exists passkeys_user_id_idx on passkeys(user_id);
+
+create table if not exists webauthn_challenges (
+  id uuid primary key default gen_random_uuid(),
+  challenge text not null unique,
+  user_id uuid references users(id) on delete cascade,
+  purpose text not null check (purpose in ('registration', 'authentication')),
+  expires_at timestamptz not null,
+  created_at timestamptz not null default now()
+);
+create index if not exists webauthn_challenges_challenge_idx on webauthn_challenges(challenge);

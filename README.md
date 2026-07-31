@@ -22,8 +22,9 @@ The **EnvGuard CLI** gives developers the same power directly from their termina
   - [3. Set Up Supabase](#3-set-up-supabase)
   - [4. Set Up Mailjet](#4-set-up-mailjet)
   - [5. Set Up Google Cloud](#5-set-up-google-cloud)
-  - [6. Configure Environment Variables](#6-configure-environment-variables)
-  - [7. Run Locally](#7-run-locally)
+  - [6. Set Up Passkeys (WebAuthn)](#6-set-up-passkeys-webauthn)
+  - [7. Configure Environment Variables](#7-configure-environment-variables)
+  - [8. Run Locally](#8-run-locally)
 - [CLI – Command Line Interface](#cli--command-line-interface)
   - [Installation](#installation)
   - [Setup (API URL)](#setup-api-url)
@@ -53,6 +54,7 @@ EnvGuard replaces that workflow with a secure centralized solution.
 - Email & Password Authentication
 - JWT Authentication
 - Google OAuth Login
+- Passkey Authentication (WebAuthn)
 - Optional Two-Factor Authentication (2FA)
 - Company Management
 - Team Invitations via Email
@@ -248,7 +250,46 @@ Add your local and production domains under:
 
 ---
 
-## 6. Configure Environment Variables
+## 6. Set Up Passkeys (WebAuthn)
+
+### Install Packages
+
+Server
+
+```bash
+cd server
+
+npm install @simplewebauthn/server
+```
+
+Client
+
+```bash
+cd client
+
+npm install @simplewebauthn/browser
+```
+
+### Configure Environment Variables
+
+Add the following to your server `.env`:
+
+```env
+# Local Development
+PASSKEY_RP_ID=localhost
+PASSKEY_RP_NAME=EnvGuard
+```
+
+For production, use your frontend domain as the RP ID:
+
+```env
+PASSKEY_RP_ID=env-guardd.vercel.app
+PASSKEY_RP_NAME=EnvGuard
+```
+
+---
+
+## 7. Configure Environment Variables
 
 Server
 
@@ -280,7 +321,7 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 
 ---
 
-## 7. Run Locally
+## 8. Run Locally
 
 Backend
 
