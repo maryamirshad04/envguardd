@@ -280,12 +280,7 @@ PASSKEY_RP_ID=localhost
 PASSKEY_RP_NAME=EnvGuard
 ```
 
-For production, use your frontend domain as the RP ID:
-
-```env
-PASSKEY_RP_ID=env-guardd.vercel.app
-PASSKEY_RP_NAME=EnvGuard
-```
+(for production, use your frontend domain as the RP ID)
 
 ---
 
