@@ -83,7 +83,7 @@ EnvGuard replaces that workflow with a secure centralized solution.
 | Frontend | Next.js, React, Tailwind CSS |
 | Backend | Node.js, Express |
 | Database | Supabase (PostgreSQL) |
-| Authentication | JWT, bcrypt, Google OAuth, otplib |
+| Authentication | JWT, bcrypt, Google OAuth, otplib, simplewebauthn |
 | Encryption | AES-256-GCM (Node Crypto) |
 | Email | Mailjet |
 | Logging | Pino |
