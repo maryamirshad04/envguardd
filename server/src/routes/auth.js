@@ -16,6 +16,18 @@ const {
   PASSWORD_RESET, PASSWORD_CHANGED, EMAIL_CHANGED,
   TWO_FACTOR_ENABLED, TWO_FACTOR_DISABLED
 } = require('../constants/auditActions');
+const {
+  generateRegistrationOptions,
+  verifyRegistrationResponse,
+  generateAuthenticationOptions,
+  verifyAuthenticationResponse,
+} = require('@simplewebauthn/server');
+const { isoBase64URL } = require('@simplewebauthn/server/helpers');
+
+const RP_NAME = process.env.PASSKEY_RP_NAME || 'EnvGuard';
+const RP_ID = process.env.PASSKEY_RP_ID || 'localhost';
+const PASSKEY_ORIGIN = process.env.CLIENT_URL;
+const CHALLENGE_TTL_MS = 5 * 60 * 1000;
 
 const router = express.Router();
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
@@ -53,6 +65,26 @@ async function issueSessionCookie(res, user) {
     { expiresIn: '7d' }
   );
   res.cookie('token', token, COOKIE_OPTIONS);
+}
+
+async function saveWebauthnChallenge(challenge, userId, purpose) {
+  const expiresAt = new Date(Date.now() + CHALLENGE_TTL_MS);
+  const { error } = await supabase.from('webauthn_challenges').insert({
+    challenge,
+    user_id: userId || null,
+    purpose,
+    expires_at: expiresAt.toISOString(),
+  });
+  if (error) throw new Error(error.message);
+}
+
+function extractChallengeFromClientData(response) {
+  try {
+    const json = Buffer.from(response.response.clientDataJSON, 'base64url').toString('utf8');
+    return JSON.parse(json).challenge;
+  } catch {
+    return null;
+  }
 }
 
 async function createDefaultCompany(userId) {
@@ -796,6 +828,268 @@ router.post('/2fa/disable', requireAuth, async (req, res) => {
 
   logger.info({ userId: req.user.userId }, '2FA disabled successfully');
   res.json({ enabled: false });
+});
+
+// --- PASSKEY: registration options (must be logged in) ---
+router.post('/passkey/register/options', requireAuth, async (req, res) => {
+  const { data: existing, error } = await supabase
+    .from('passkeys')
+    .select('credential_id, transports')
+    .eq('user_id', req.user.userId);
+
+  if (error) {
+    logger.error({ userId: req.user.userId, error: error.message }, 'Passkey register options - lookup error');
+    return res.status(500).json({ error: error.message });
+  }
+
+  const options = await generateRegistrationOptions({
+    rpName: RP_NAME,
+    rpID: RP_ID,
+    userName: req.user.email,
+    userDisplayName: req.user.email,
+    attestationType: 'none',
+    excludeCredentials: (existing || []).map((p) => ({
+      id: p.credential_id,
+      transports: p.transports || undefined,
+    })),
+    authenticatorSelection: {
+      residentKey: 'required',
+      userVerification: 'preferred',
+    },
+  });
+
+  try {
+    await saveWebauthnChallenge(options.challenge, req.user.userId, 'registration');
+  } catch (err) {
+    logger.error({ userId: req.user.userId, error: err.message }, 'Passkey register options - challenge save error');
+    return res.status(500).json({ error: 'Could not start passkey registration' });
+  }
+
+  res.json(options);
+});
+
+// --- PASSKEY: registration verify ---
+router.post('/passkey/register/verify', requireAuth, async (req, res) => {
+  const { response, name } = req.body;
+  if (!response) {
+    return res.status(400).json({ error: 'Missing registration response' });
+  }
+
+  const { data: pending, error: pendingError } = await supabase
+    .from('webauthn_challenges')
+    .select('id, challenge, expires_at')
+    .eq('user_id', req.user.userId)
+    .eq('purpose', 'registration')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .single();
+
+  if (pendingError || !pending) {
+    logger.warn({ userId: req.user.userId }, 'Passkey register verify - no pending challenge');
+    return res.status(400).json({ error: 'Registration session expired. Please try again.' });
+  }
+  await supabase.from('webauthn_challenges').delete().eq('id', pending.id);
+  if (new Date(pending.expires_at) < new Date()) {
+    return res.status(400).json({ error: 'Registration session expired. Please try again.' });
+  }
+
+  let verification;
+  try {
+    verification = await verifyRegistrationResponse({
+      response,
+      expectedChallenge: pending.challenge,
+      expectedOrigin: PASSKEY_ORIGIN,
+      expectedRPID: RP_ID,
+    });
+  } catch (err) {
+    logger.warn({ userId: req.user.userId, error: err.message }, 'Passkey register verify - failed');
+    return res.status(400).json({ error: 'Could not verify passkey. Please try again.' });
+  }
+
+  if (!verification.verified || !verification.registrationInfo) {
+    return res.status(400).json({ error: 'Passkey verification failed' });
+  }
+
+  const { credential, credentialDeviceType, credentialBackedUp } = verification.registrationInfo;
+
+  const { error: insertError } = await supabase.from('passkeys').insert({
+    user_id: req.user.userId,
+    credential_id: credential.id,
+    public_key: isoBase64URL.fromBuffer(credential.publicKey),
+    counter: credential.counter,
+    device_type: credentialDeviceType,
+    backed_up: credentialBackedUp,
+    transports: credential.transports || null,
+    name: name?.trim() || 'Passkey',
+  });
+
+  if (insertError) {
+    logger.error({ userId: req.user.userId, error: insertError.message }, 'Passkey register verify - insert error');
+    return res.status(500).json({ error: insertError.message });
+  }
+
+  // Uses a literal action string so this doesn't depend on editing constants/auditActions.js.
+  // Add PASSKEY_ADDED / PASSKEY_REMOVED there later if you want it alongside the other constants.
+  logAuditEvent({
+    actorId: req.user.userId,
+    action: 'PASSKEY_ADDED',
+    resourceType: 'user',
+    resourceId: req.user.userId,
+    req,
+  });
+
+  logger.info({ userId: req.user.userId }, 'Passkey registered successfully');
+  res.json({ registered: true });
+});
+
+// --- PASSKEY: login options (public, usernameless/discoverable) ---
+router.post('/passkey/login/options', async (req, res) => {
+  const options = await generateAuthenticationOptions({
+    rpID: RP_ID,
+    userVerification: 'preferred',
+    // No allowCredentials -> browser prompts with any discoverable passkey for this RP.
+  });
+
+  try {
+    await saveWebauthnChallenge(options.challenge, null, 'authentication');
+  } catch (err) {
+    logger.error({ error: err.message }, 'Passkey login options - challenge save error');
+    return res.status(500).json({ error: 'Could not start passkey sign-in' });
+  }
+
+  res.json(options);
+});
+
+// --- PASSKEY: login verify ---
+router.post('/passkey/login/verify', async (req, res) => {
+  const { response } = req.body;
+  if (!response?.id) {
+    return res.status(400).json({ error: 'Missing passkey response' });
+  }
+
+  const clientChallenge = extractChallengeFromClientData(response);
+  if (!clientChallenge) {
+    return res.status(400).json({ error: 'Invalid passkey response' });
+  }
+
+  const { data: pending, error: pendingError } = await supabase
+    .from('webauthn_challenges')
+    .select('id, expires_at')
+    .eq('challenge', clientChallenge)
+    .eq('purpose', 'authentication')
+    .single();
+
+  if (pendingError || !pending) {
+    logger.warn('Passkey login verify - no matching challenge');
+    return res.status(400).json({ error: 'Sign-in session expired. Please try again.' });
+  }
+  await supabase.from('webauthn_challenges').delete().eq('id', pending.id);
+  if (new Date(pending.expires_at) < new Date()) {
+    return res.status(400).json({ error: 'Sign-in session expired. Please try again.' });
+  }
+
+  const { data: passkey, error: passkeyError } = await supabase
+    .from('passkeys')
+    .select('id, user_id, credential_id, public_key, counter, transports')
+    .eq('credential_id', response.id)
+    .single();
+
+  if (passkeyError || !passkey) {
+    logger.warn({ credentialId: response.id }, 'Passkey login verify - unknown credential');
+    return res.status(401).json({ error: 'Passkey not recognized' });
+  }
+
+  const { data: user, error: userError } = await supabase
+    .from('users')
+    .select('id, email')
+    .eq('id', passkey.user_id)
+    .single();
+
+  if (userError || !user) {
+    logger.error({ userId: passkey.user_id }, 'Passkey login verify - user not found');
+    return res.status(401).json({ error: 'Account not found' });
+  }
+
+  let verification;
+  try {
+    verification = await verifyAuthenticationResponse({
+      response,
+      expectedChallenge: clientChallenge,
+      expectedOrigin: PASSKEY_ORIGIN,
+      expectedRPID: RP_ID,
+      credential: {
+        id: passkey.credential_id,
+        publicKey: isoBase64URL.toBuffer(passkey.public_key),
+        counter: passkey.counter,
+        transports: passkey.transports || undefined,
+      },
+    });
+  } catch (err) {
+    logger.warn({ userId: user.id, error: err.message }, 'Passkey login verify - failed');
+    return res.status(401).json({ error: 'Could not verify passkey' });
+  }
+
+  if (!verification.verified) {
+    return res.status(401).json({ error: 'Passkey verification failed' });
+  }
+
+  await supabase
+    .from('passkeys')
+    .update({
+      counter: verification.authenticationInfo.newCounter,
+      last_used_at: new Date().toISOString(),
+    })
+    .eq('id', passkey.id);
+
+  logAuditEvent({
+    actorId: user.id,
+    action: LOGIN_SUCCESS,
+    resourceType: 'user',
+    resourceId: user.id,
+    req,
+  });
+
+  await issueSessionCookie(res, user);
+  logger.info({ userId: user.id, email: maskEmail(user.email) }, 'User logged in via passkey');
+  res.json({ user: { id: user.id, email: user.email } });
+});
+
+// --- PASSKEY: list / remove (for a future settings page) ---
+router.get('/passkey/list', requireAuth, async (req, res) => {
+  const { data, error } = await supabase
+    .from('passkeys')
+    .select('id, name, device_type, created_at, last_used_at')
+    .eq('user_id', req.user.userId)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    logger.error({ userId: req.user.userId, error: error.message }, 'Passkey list error');
+    return res.status(500).json({ error: error.message });
+  }
+  res.json({ passkeys: data });
+});
+
+router.delete('/passkey/:id', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  const { data: existing, error: findError } = await supabase
+    .from('passkeys')
+    .select('id')
+    .eq('id', id)
+    .eq('user_id', req.user.userId)
+    .single();
+
+  if (findError || !existing) {
+    return res.status(404).json({ error: 'Passkey not found' });
+  }
+
+  const { error } = await supabase.from('passkeys').delete().eq('id', id);
+  if (error) {
+    logger.error({ userId: req.user.userId, error: error.message }, 'Passkey delete error');
+    return res.status(500).json({ error: error.message });
+  }
+
+  logger.info({ userId: req.user.userId, passkeyId: id }, 'Passkey removed');
+  res.json({ removed: true });
 });
 
 // --- CLI endpoints (unchanged) ---

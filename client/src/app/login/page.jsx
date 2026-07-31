@@ -1,8 +1,9 @@
 'use client';
 
-import { Suspense, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { startAuthentication, browserSupportsWebAuthn } from '@simplewebauthn/browser';
 import { api } from '@/lib/api';
 import GoogleSignInButton from '@/components/GoogleSignInButton';
 import Alert from '@/components/Alert';
@@ -34,6 +35,20 @@ function EyeOffIcon() {
   );
 }
 
+function KeyIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path
+        d="M15 7a4 4 0 10-3.8 4H15l2 2 1.5-1.5L17 10h1l1.5-1.5L18 7h-3z"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinejoin="round"
+      />
+      <path d="M4 20l6.5-6.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 export default function LoginPage() {
   return (
     <Suspense
@@ -60,6 +75,13 @@ function LoginForm() {
 
   const [tempToken, setTempToken] = useState(null);
   const [code, setCode] = useState('');
+
+  const [passkeySupported, setPasskeySupported] = useState(false);
+  const [passkeyLoading, setPasskeyLoading] = useState(false);
+
+  useEffect(() => {
+    setPasskeySupported(browserSupportsWebAuthn());
+  }, []);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -106,6 +128,23 @@ function LoginForm() {
     }
   }
 
+  async function handlePasskeyLogin() {
+    setError('');
+    setPasskeyLoading(true);
+    try {
+      const options = await api.passkeys.loginOptions();
+      const authResponse = await startAuthentication({ optionsJSON: options });
+      await api.passkeys.loginVerify(authResponse);
+      router.push(redirect);
+    } catch (err) {
+      if (err.name !== 'NotAllowedError') {
+        setError(err.message || 'Passkey sign-in failed. Please try again.');
+      }
+    } finally {
+      setPasskeyLoading(false);
+    }
+  }
+
   return (
     <main className="flex min-h-screen items-center justify-center bg-ink px-6">
       <div className="w-full max-w-sm rounded-sm border border-line bg-surface p-8">
@@ -123,8 +162,19 @@ function LoginForm() {
             <h1 className="mt-6 text-2xl font-semibold text-paper">Welcome back</h1>
             <p className="mt-1 text-sm text-mist">Log in to access your projects.</p>
 
-            <div className="mt-6">
+            <div className="mt-6 space-y-2">
               <GoogleSignInButton onCredential={handleGoogleCredential} onError={setError} />
+              {passkeySupported && (
+                <button
+                  type="button"
+                  onClick={handlePasskeyLogin}
+                  disabled={passkeyLoading}
+                  className="flex w-full items-center justify-center gap-2 rounded-sm border border-line bg-ink px-4 py-2 text-sm font-medium text-paper hover:border-signal disabled:opacity-50"
+                >
+                  {passkeyLoading ? <Spinner className="h-4 w-4" /> : <KeyIcon />}
+                  {passkeyLoading ? 'Waiting for your passkey...' : 'Sign in with a passkey'}
+                </button>
+              )}
             </div>
 
             <div className="my-6 flex items-center gap-3">
@@ -142,6 +192,7 @@ function LoginForm() {
                   id="email"
                   type="email"
                   required
+                  autoComplete="username webauthn"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   onFocus={() => setError('')}
@@ -163,6 +214,7 @@ function LoginForm() {
                     id="password"
                     type={showPassword ? 'text' : 'password'}
                     required
+                    autoComplete="current-password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     onFocus={() => setError('')}

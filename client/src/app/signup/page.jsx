@@ -8,6 +8,7 @@ import Modal from '@/components/Modal';
 import GoogleSignInButton from '@/components/GoogleSignInButton';
 import Alert from '@/components/Alert';
 import Spinner from '@/components/Spinner';
+import { startRegistration } from '@simplewebauthn/browser';
 
 function EyeIcon() {
   return (
@@ -64,6 +65,7 @@ function SignupForm() {
   const [resending, setResending] = useState(false);
   const [resendMessage, setResendMessage] = useState('');
   const [show2faPrompt, setShow2faPrompt] = useState(false);
+  const [passkeySettingUp, setPasskeySettingUp] = useState(false);
 
   useEffect(() => {
     if (show2faParam === '1') {
@@ -164,7 +166,25 @@ function SignupForm() {
     } finally {
       setLoading(false);
     }
+  };
+
+  async function handleSetupPasskey() {
+  setError('');
+  setPasskeySettingUp(true);
+  try {
+    const options = await api.passkeys.registerOptions();
+    const regResponse = await startRegistration({ optionsJSON: options });
+    await api.passkeys.registerVerify(regResponse);
+    setShow2faPrompt(false);
+    router.push(redirect);
+  } catch (err) {
+    if (err.name !== 'NotAllowedError') {
+      setError(err.message || 'Could not set up passkey. Please try again.');
+    }
+  } finally {
+    setPasskeySettingUp(false);
   }
+};
 
   const handleSetup2fa = () => {
     setShow2faPrompt(false);
@@ -324,19 +344,24 @@ function SignupForm() {
       <Modal open={show2faPrompt} onClose={handleSkip2fa} title="Secure your account">
         <div className="space-y-4">
           <p className="text-sm text-mist">
-            You can add an extra layer of security to your account by enabling
-            two-factor authentication (2FA). This will require a 6-digit code from
-            your authenticator app when you log in.
+            Add a passkey for one-tap sign-in with your fingerprint, face, or device PIN — no
+            password needed. You can also enable two-factor authentication for extra protection.
           </p>
-          <p className="text-sm text-mist">
-            Would you like to set it up now?
-          </p>
+          {error && <Alert variant="error">{error}</Alert>}
+          <button
+            onClick={handleSetupPasskey}
+            disabled={passkeySettingUp}
+            className="flex w-full items-center justify-center gap-2 rounded-sm bg-signal px-4 py-2 text-sm font-medium text-ink hover:bg-signal/90 disabled:opacity-50"
+          >
+            {passkeySettingUp ? <Spinner className="h-4 w-4" /> : null}
+            {passkeySettingUp ? 'Waiting for your device...' : 'Set up a passkey'}
+          </button>
           <div className="flex flex-col gap-2 sm:flex-row sm:gap-3">
             <button
               onClick={handleSetup2fa}
-              className="flex-1 rounded-sm bg-signal px-4 py-2 text-sm font-medium text-ink hover:bg-signal/90"
+              className="flex-1 rounded-sm border border-line px-4 py-2 text-sm text-mist hover:text-paper"
             >
-              Set up now
+              Set up 2FA instead
             </button>
             <button
               onClick={handleSkip2fa}

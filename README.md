@@ -4,7 +4,7 @@
 
 EnvGuard is a full-stack tool for teams to store, organize, and share environment variables without emailing plaintext secrets. It replaces manual `.env` sharing with authenticated, role-based access control, organized by **company → projects → environments → variables**.
 
-The **EnvGuard CLI** gives developers the same power directly from their terminal—ideal for automation, CI/CD, and daily workflows.
+The **EnvGuard CLI** gives developers the same power directly from their terminal ideal for automation, CI/CD, and daily workflows.
 
 ---
 

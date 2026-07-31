@@ -152,4 +152,18 @@ export const api = {
       body: JSON.stringify({ sourceEnvId, targetEnvId, keys }),
     }),
 },
+
+passkeys: {
+    registerOptions: () => request('/api/auth/passkey/register/options', { method: 'POST' }),
+    registerVerify: (response, name) =>
+      request('/api/auth/passkey/register/verify', {
+        method: 'POST',
+        body: JSON.stringify({ response, name }),
+      }),
+    loginOptions: () => request('/api/auth/passkey/login/options', { method: 'POST' }),
+    loginVerify: (response) =>
+      request('/api/auth/passkey/login/verify', { method: 'POST', body: JSON.stringify({ response }) }),
+    list: () => request('/api/auth/passkey/list'),
+    remove: (id) => request(`/api/auth/passkey/${id}`, { method: 'DELETE' }),
+  },
 };
