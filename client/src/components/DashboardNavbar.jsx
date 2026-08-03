@@ -105,6 +105,13 @@ export default function DashboardNavbar() {
                 </>
               )}
             </div>
+            <Link
+              data-tour="dash-cli"
+              href="/dashboard/cli"
+              className="rounded-sm border border-line px-2.5 py-1.5 text-xs text-mist hover:border-signal/40 hover:text-paper sm:px-3 sm:text-sm"
+            >
+              CLI
+            </Link>
           </div>
 
           <div className="relative shrink-0 self-end sm:self-auto">

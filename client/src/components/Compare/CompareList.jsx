@@ -95,7 +95,7 @@ export default function CompareList({
             </label>
           )}
 
-          <ul className="divide-y divide-line rounded-sm border border-line bg-surface">
+          <ul data-tour="cmp-rows" className="divide-y divide-line rounded-sm border border-line bg-surface">
             {rows.map((row) => {
               const canSync = row.source && row.status !== 'same';
               return (

@@ -43,7 +43,7 @@ export default function CompareToolbar({
   return (
     <div className="mt-6 space-y-4">
       <div className="flex flex-col gap-3 rounded-sm border border-line bg-surface p-4 sm:flex-row sm:items-end">
-        <div className="flex-1">
+        <div className="flex-1" data-tour="cmp-source">
           <label className="mb-1 block text-xs text-mist">Source</label>
           <select
             value={sourceEnvId}
@@ -65,7 +65,7 @@ export default function CompareToolbar({
           <SwapIcon />
         </button>
 
-        <div className="flex-1">
+        <div className="flex-1" data-tour="cmp-target">
           <label className="mb-1 block text-xs text-mist">Target</label>
           <select
             value={targetEnvId}
@@ -84,7 +84,7 @@ export default function CompareToolbar({
       )}
 
       {summary && (
-        <div className="flex flex-wrap gap-2">
+        <div data-tour="cmp-tags" className="flex flex-wrap gap-2">
           <span className="whitespace-nowrap rounded-sm border border-line px-2 py-1 font-mono text-[10px] uppercase tracking-wide text-mist">
             {summary.same} same
           </span>
@@ -123,6 +123,7 @@ export default function CompareToolbar({
         </div>
 
         <button
+          data-tour="cmp-sync"
           onClick={onOpenSync}
           disabled={selectedCount === 0}
           className="rounded-sm bg-signal px-3 py-1.5 text-xs font-medium text-ink hover:bg-signal/90 disabled:cursor-not-allowed disabled:opacity-40"

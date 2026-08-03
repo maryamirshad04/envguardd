@@ -10,6 +10,8 @@ import Pagination from '@/components/Pagination';
 import { CardGridSkeleton, Skeleton } from '@/components/Skeleton';
 import Alert from '@/components/Alert';
 import SearchInput from '@/components/SearchInput';
+import OnboardingTour from '@/components/Onboarding/OnboardingTour';
+import { getCompanySteps } from '@/lib/tourSteps';
 
 const PROJECTS_PAGE_SIZE = 9;
 
@@ -71,7 +73,6 @@ export default function CompanyDetailPage() {
     return () => { cancelled = true; };
   }, [companySlug, router]);
 
-  // Load projects only if company exists
   useEffect(() => {
     if (!company) return;
     if (tab !== 'projects' || projectsLoaded) return;
@@ -275,7 +276,7 @@ export default function CompanyDetailPage() {
 )}
       </div>
 
-      <h1 className="mt-2 text-2xl font-semibold text-paper">{company?.name}</h1>
+      <h1 data-tour="team-heading" className="mt-2 text-2xl font-semibold text-paper">{company?.name}</h1>
 
       <div className="mt-8 flex gap-2 border-b border-line">
         <button
@@ -312,6 +313,7 @@ export default function CompanyDetailPage() {
               <div />
             )}
             <button
+              data-tour="team-new-project"
               onClick={() => {
                 setError('');
                 setNewProjectName('');
@@ -367,7 +369,7 @@ export default function CompanyDetailPage() {
       {tab === 'team' && (
         <div className="mt-6 space-y-8">
           {isAdmin && (
-            <div>
+            <div data-tour="team-invite-form">
               <h2 className="text-sm font-medium text-paper">Invite someone</h2>
               <form
                 onSubmit={handleInvite}
@@ -447,10 +449,10 @@ export default function CompanyDetailPage() {
               )}
             </div>
           )}
-
-          <div>
+          
+          <div data-tour="team-members">
             <div className="flex items-center justify-between">
-              <h2 className="text-sm font-medium text-paper">Members</h2>
+              <h2 className="text-sm font-medium text-paper">Members</h2>              
               {members.length > 5 && (
                 <input
                   value={memberSearch}
@@ -557,6 +559,9 @@ export default function CompanyDetailPage() {
           )}
         </div>
       </Modal>
+    {!loading && (
+        <OnboardingTour tourKey="team" steps={getCompanySteps(setTab, isAdmin)} />
+      )}
     </div>
   );
 }

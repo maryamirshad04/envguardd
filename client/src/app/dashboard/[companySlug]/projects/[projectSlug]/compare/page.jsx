@@ -8,6 +8,8 @@ import { useCompare } from '@/hooks/useCompare';
 import CompareToolbar from '@/components/Compare/CompareToolbar';
 import CompareList from '@/components/Compare/CompareList';
 import SyncConfirmModal from '@/components/Compare/SyncConfirmModal';
+import OnboardingTour from '@/components/Onboarding/OnboardingTour';
+import { getCompareSteps } from '@/lib/tourSteps';
 
 export default function CompareEnvironmentsPage() {
   const { companySlug, projectSlug } = useParams();
@@ -28,7 +30,7 @@ export default function CompareEnvironmentsPage() {
       </Link>
 
       <p className="mt-4 font-mono text-xs uppercase tracking-wider text-signal">Compare</p>
-      <h1 className="mt-2 text-2xl font-semibold text-paper">Compare environments</h1>
+      <h1 data-tour="cmp-heading" className="mt-2 text-2xl font-semibold text-paper">Compare environments</h1>
       <p className="mt-1 text-sm text-mist">
         See what differs between two environments, then copy selected variables across.
       </p>
@@ -85,6 +87,9 @@ export default function CompareEnvironmentsPage() {
             error={c.syncError}
             onConfirm={c.confirmSync}
           />
+        {!c.loading && c.summary && (
+            <OnboardingTour tourKey="compare" steps={getCompareSteps()} />
+          )}
         </>
       )}
     </div>

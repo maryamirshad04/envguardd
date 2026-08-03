@@ -19,7 +19,7 @@ export default function EnvironmentSection({
 }) {
   return (
     <>
-      <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+      <div data-tour="proj-environments" className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
         {environments.map((env) => (
           <button
             key={env.id}

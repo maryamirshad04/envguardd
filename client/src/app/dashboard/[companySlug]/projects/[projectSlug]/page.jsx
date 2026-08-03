@@ -8,6 +8,8 @@ import { useProject } from '@/hooks/useProject';
 import EnvironmentSection from '@/components/Project/EnvironmentSection';
 import VariableSection from '@/components/Project/VariableSection';
 import ShareModal from '@/components/Project/ShareModal';
+import OnboardingTour from '@/components/Onboarding/OnboardingTour';
+import { getProjectSteps } from '@/lib/tourSteps';
 
 export default function ProjectDetailPage() {
   // Use slugs from the URL
@@ -125,8 +127,9 @@ export default function ProjectDetailPage() {
 
       <p className="mt-4 font-mono text-xs uppercase tracking-wider text-signal">Project</p>
       <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
-  <h1 className="text-2xl font-semibold text-paper">{project?.name}</h1>
+  <h1 data-tour="proj-heading" className="text-2xl font-semibold text-paper">{project?.name}</h1>
   <Link
+    data-tour="proj-compare-link"
     href={`/dashboard/${companySlug}/projects/${projectSlug}/compare`}
     className="rounded-sm border border-line px-3 py-1.5 text-xs text-mist hover:border-signal/40 hover:text-paper"
   >
@@ -241,6 +244,9 @@ export default function ProjectDetailPage() {
         shareCopied={shareCopied}
         copyShareLink={copyShareLink}
       />
+      {!loading && !varsLoading && (
+        <OnboardingTour tourKey="project" steps={getProjectSteps(hasVariables)} />
+      )}
     </div>
   );
 }

@@ -8,6 +8,8 @@ import Alert from '@/components/Alert';
 import SearchInput from '@/components/SearchInput';
 import Pagination from '@/components/Pagination';
 import { Skeleton } from '@/components/Skeleton';
+import OnboardingTour from '@/components/Onboarding/OnboardingTour';
+import { getAuditSteps } from '@/lib/tourSteps';
 
 const PAGE_SIZE = 15;
 const SEARCH_DEBOUNCE_MS = 350;
@@ -52,7 +54,6 @@ export default function AuditPage() {
   const [groupFilter, setGroupFilter] = useState('all');
   const [page, setPage] = useState(1);
 
-  // Verify admin access once
   useEffect(() => {
     let cancelled = false;
     async function verify() {
@@ -133,19 +134,23 @@ export default function AuditPage() {
       </Link>
 
       <p className="mt-4 font-mono text-xs uppercase tracking-wider text-signal">Security</p>
-      <h1 className="mt-2 text-2xl font-semibold text-paper">Audit Logs</h1>
+      <h1 data-tour="audit-heading" className="mt-2 text-2xl font-semibold text-paper">Audit Logs</h1>
       <p className="mt-1 text-sm text-mist">
         Immutable record of security-relevant activity for this team &middot; {total} total
       </p>
 
       <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div data-tour="audit-search">
         <SearchInput
+          data-tour="audit-search"
           value={searchInput}
           onChange={setSearchInput}
           placeholder="Search by actor email, action, resource…"
           className="w-full sm:max-w-xs"
         />
+        </div>
         <select
+          data-tour="audit-filter"
           value={groupFilter}
           onChange={(e) => handleGroupChange(e.target.value)}
           className="rounded-sm border border-line bg-surface px-3 py-2 text-sm text-paper outline-none focus:border-signal"
@@ -156,7 +161,7 @@ export default function AuditPage() {
         </select>
       </div>
 
-      <div className={fetching ? 'opacity-50 transition-opacity' : 'transition-opacity'}>
+      <div data-tour="audit-results" className={fetching ? 'opacity-50 transition-opacity' : 'transition-opacity'}>
         {logs.length === 0 ? (
           <div className="mt-6 rounded-sm border border-dashed border-line p-10 text-center">
             <p className="font-mono text-sm text-mist">
@@ -219,6 +224,7 @@ export default function AuditPage() {
           </>
         )}
       </div>
+      <OnboardingTour tourKey="audit" steps={getAuditSteps(logs.length > 0)} />
     </div>
   );
 }

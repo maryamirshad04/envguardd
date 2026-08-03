@@ -10,6 +10,8 @@ import Spinner from '@/components/Spinner';
 import Pagination from '@/components/Pagination';
 import Alert from '@/components/Alert';
 import SearchInput from '@/components/SearchInput';
+import OnboardingTour from '@/components/Onboarding/OnboardingTour';
+import { getDashboardSteps } from '@/lib/tourSteps';
 
 const PAGE_SIZE = 9;
 
@@ -107,12 +109,13 @@ export default function DashboardPage() {
     <div className="mx-auto max-w-6xl px-6 py-12">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold text-paper">Your Teams</h1>
+          <h1 data-tour="dash-heading" className="text-2xl font-semibold text-paper">Your Teams</h1>
           <p className="mt-1 text-sm text-mist">
             Each workspace has its own team, projects, and encrypted variables.
           </p>
         </div>
         <button
+          data-tour="dash-new-team"
           onClick={() => {
             setError('');
             setNewName('');
@@ -125,12 +128,15 @@ export default function DashboardPage() {
       </div>
 
       {companies.length > 0 && (
+        <div data-tour="dash-search">
         <SearchInput
           value={search}
           onChange={handleSearchChange}
           placeholder="Search teams..."
           className="mt-6 w-full max-w-sm"
+          data-tour="dash-search"
         />
+        </div>
       )}
 
       {companies.length === 0 ? (
@@ -144,8 +150,8 @@ export default function DashboardPage() {
       ) : (
         <>
           <ul className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {paginated.map((c) => (
-              <li key={c.slug} className="relative">
+            {paginated.map((c, i) => (
+              <li key={c.slug} className="relative" data-tour={i === 0 ? 'dash-team-card' : undefined}>
                 <Link
                   href={`/dashboard/${c.slug}`}
                   className="block rounded-sm border border-line bg-surface p-5 transition-colors hover:border-signal/40"
@@ -262,6 +268,7 @@ export default function DashboardPage() {
           )}
         </div>
       </Modal>
+      <OnboardingTour tourKey="dashboard" steps={getDashboardSteps(companies.length > 0)} />
     </div>
   );
 }

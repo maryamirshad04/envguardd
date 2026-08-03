@@ -63,6 +63,7 @@ export default function VariableSection({
       {/* Toolbar */}
       <div className="mt-6 flex flex-wrap gap-2">
         <button
+          data-tour="var-add"
           onClick={() => {
             setAddVarError('');
             setShowNewValue(false);
@@ -73,6 +74,7 @@ export default function VariableSection({
           + Add variable
         </button>
         <button
+          data-tour="var-import"
           onClick={() => {
             setImportError('');
             setImportOpen(true);
@@ -103,6 +105,7 @@ export default function VariableSection({
               Download CSV
             </button>
             <button
+              data-tour="var-share"
               onClick={onGenerateLink}
               className="rounded-sm bg-signal px-3 py-1.5 text-xs font-medium text-ink hover:bg-signal/90"
             >
