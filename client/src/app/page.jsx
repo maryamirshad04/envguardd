@@ -5,7 +5,6 @@ import FlowDiagram from '@/components/FlowDiagram';
 import ArchitectureFlow from '@/components/ArchitectureFlow';
 import ComparisonSection from '@/components/ComparisonSection';
 import TrustMetrics from '@/components/TrustMetrics';
-import ScrollRail from '@/components/ScrollRail';
 
 const FEATURES = [
   {
@@ -26,7 +25,7 @@ const FEATURES = [
   {
     label: 'Instant revocation',
     title: 'Cut off access the moment someone leaves',
-    body: "Admins revoke a collaborator's access instantly — no rotating every key in the project by hand.",
+    body: "Admins revoke a collaborator's access instantly, no rotating every key in the project by hand.",
   },
   {
     label: 'Temporary sessions',
@@ -44,7 +43,6 @@ export default function LandingPage() {
   return (
     <>
       <Navbar />
-      <ScrollRail />
 
       <section id="hero" className="mx-auto max-w-6xl px-6 pb-20 pt-16 sm:pt-24">
         <div className="grid grid-cols-1 items-center gap-12 lg:grid-cols-2">
@@ -67,7 +65,7 @@ export default function LandingPage() {
               >
                 Create free account
               </Link>
-              <a href="#how-it-works" className="text-sm text-mist hover:text-paper">
+              <a href="#architecture" className="text-sm text-mist hover:text-paper">
                 See how it works &rarr;
               </a>
             </div>
@@ -76,17 +74,13 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <section id="metrics">
-        <TrustMetrics />
-      </section>
-
       <section id="features" className="border-t border-line bg-surface/40">
         <div className="mx-auto max-w-6xl px-6 py-20">
           <p className="mb-2 inline-block rounded-sm bg-signal px-2 py-1 font-mono text-xs font-medium text-ink">
             Features
           </p>
           <h2 className="mt-4 max-w-lg text-2xl font-semibold text-paper sm:text-3xl">
-            Everything a team needs to stop treating .env like a chat attachment
+            Everything a team needs to stop treating <span className="text-signal">.env</span> like a chat attachment
           </h2>
 
           <div className="mt-12 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -106,16 +100,16 @@ export default function LandingPage() {
         </div>
       </section>
 
+      <TrustMetrics />
+
       <ArchitectureFlow />
 
-      <div id="comparison">
-        <ComparisonSection />
-      </div>
+      <ComparisonSection />
 
-      <section id="how-it-works" className="border-t border-line bg-surface/40">
+      <section id="get-started" className="border-t border-line bg-surface/40">
         <div className="mx-auto max-w-6xl px-6 py-20 text-center">
           <h2 className="text-2xl font-semibold text-paper sm:text-3xl">
-            Your secrets, encrypted before they ever leave your browser.
+            Your secrets, <span className="text-signal">encrypted</span> before they ever leave your browser.
           </h2>
           <p className="mx-auto mt-4 max-w-md text-sm text-mist">
             Set up your first project in a few minutes.

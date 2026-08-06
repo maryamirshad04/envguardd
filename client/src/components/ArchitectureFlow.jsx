@@ -17,11 +17,8 @@ export default function ArchitectureFlow() {
             Architecture
           </p>
           <h2 className="mt-4 max-w-lg text-2xl font-semibold text-paper sm:text-3xl">
-            What actually happens when you save a secret
+            What actually happens when you <span className="text-signal">save</span> a secret
           </h2>
-          <p className="mt-3 max-w-xl text-sm text-mist">
-            No plaintext ever touches disk. Here&apos;s the path a variable takes from your keyboard to storage.
-          </p>
         </Reveal>
 
         <div className="mt-14 flex flex-col lg:flex-row lg:items-stretch">

@@ -1,14 +1,17 @@
 'use client';
-import { useState } from 'react';
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { Canvas, useFrame } from '@react-three/fiber';
+import { useGLTF } from '@react-three/drei';
+import * as THREE from 'three';
 
 const COMPARISONS = [
   {
     tag: 'Manual sharing',
     sub: 'Slack, email, DMs',
     points: [
-      'Encrypted before it ever reaches a server — not typed into a chat window',
+      'Encrypted before it ever reaches a server, not typed into a chat window',
       "Revoke access instantly, no hunting down every copy in someone's DMs",
-      'Every reveal is logged — you know who saw what, and when',
+      'Every reveal is logged, you know who saw what, and when',
     ],
   },
   {
@@ -17,15 +20,15 @@ const COMPARISONS = [
     points: [
       "One-time, self-destructing share links for secrets that shouldn't live in any vault",
       'Diff two environments and sync only what changed, without exposing values',
-      'Open source and self-hostable — inspect the code instead of trusting a black box',
+      'Open source and self-hostable, inspect the code instead of trusting a black box',
     ],
   },
   {
     tag: 'envalid',
     sub: 'npm schema validator',
     points: [
-      "Checks that a variable is the right shape in code — doesn't store, encrypt, or share it",
-      "No dashboard, no invites, no access control — it's a dev dependency, not a vault",
+      "Checks that a variable is the right shape in code, doesn't store, encrypt, or share it",
+      "No dashboard, no invites, no access control, it's a dev dependency, not a vault",
       'EnvGuard covers the step before validation: getting the right secret to the right person',
     ],
   },
@@ -33,16 +36,114 @@ const COMPARISONS = [
     tag: 'dotenvx',
     sub: 'dotenvx.com',
     points: [
-      'Protects the file that ends up in your repo — EnvGuard removes the need for that file at all',
-      "No keypairs to rotate by hand — revoke a teammate's access with one click",
+      'Protects the file that ends up in your repo. EnvGuard removes the need for that file at all',
+      "No keypairs to rotate by hand, revoke a teammate's access with one click",
       'Audit logging and access control ship by default, not as a separate early-access product',
     ],
   },
 ];
 
 const SPIN_MS = 900;
-// evenly spaced, mirrored around the center (210) — used by both the SVG and the point positions
 const ROW_Y = [70, 210, 350];
+
+const CAGE_MAT = new THREE.MeshBasicMaterial({ color: '#B6FF3C', toneMapped: false });
+
+function makeCageGlowEnvMap() {
+  const size = 64;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  const grad = ctx.createLinearGradient(0, 0, 0, size);
+  grad.addColorStop(0, '#9fe62f');
+  grad.addColorStop(0.35, '#2c3a30');
+  grad.addColorStop(0.65, '#161b19');
+  grad.addColorStop(1, '#3a4a45');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, size, size);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.mapping = THREE.EquirectangularReflectionMapping;
+  texture.needsUpdate = true;
+  return texture;
+}
+
+function SpinningOrbModel({ spinCount }) {
+  const { scene } = useGLTF('/models/compare-sphere.glb');
+  const group = useRef();
+  const ballRef = useRef();
+  const speed = useRef(0.35);
+  const boostUntil = useRef(0);
+  const envMap = useMemo(() => (typeof document !== 'undefined' ? makeCageGlowEnvMap() : null), []);
+
+  const ballMat = useMemo(
+    () =>
+      new THREE.MeshStandardMaterial({
+        color: '#555555',
+        metalness: 0.55,
+        roughness: 0.32,
+        envMap,
+        envMapIntensity: 1.4,
+      }),
+    [envMap]
+  );
+
+  useEffect(() => {
+    scene.traverse((obj) => {
+      if (!obj.isMesh) return;
+      if (obj.name === 'Cage') obj.material = CAGE_MAT;
+      else if (obj.name === 'Ball') {
+        obj.material = ballMat;
+        ballRef.current = obj;
+      }
+    });
+  }, [scene, ballMat]);
+
+  useEffect(() => {
+    if (spinCount === 0) return;
+    boostUntil.current = performance.now() + SPIN_MS;
+  }, [spinCount]);
+
+  useFrame((state, delta) => {
+    const boosting = performance.now() < boostUntil.current;
+    const targetSpeed = boosting ? 6 : 0.35;
+    speed.current += (targetSpeed - speed.current) * Math.min(delta * 5, 1);
+    if (group.current) group.current.rotation.y += speed.current * delta;
+    if (ballRef.current) ballRef.current.rotation.x += speed.current * delta * 0.6;
+  });
+
+  return <primitive ref={group} object={scene} />;
+}
+
+useGLTF.preload('/models/compare-sphere.glb');
+
+function SpinningOrb({ spinCount, onClick, className = '' }) {
+  return (
+    <div className={`relative ${className}`}>
+      <div
+        className="pointer-events-none absolute inset-0 rounded-full"
+        style={{
+          background: 'radial-gradient(circle at 50% 50%, rgba(182,255,60,0.2), transparent 70%)',
+          filter: 'blur(14px)',
+        }}
+      />
+      <button
+        onClick={onClick}
+        aria-label="Show next comparison"
+        className="group relative h-full w-full outline-none"
+      >
+        <Canvas camera={{ position: [0, 0, 5.2], fov: 32 }} dpr={[1, 1.5]} gl={{ alpha: true }}>
+          <ambientLight intensity={0.6} />
+          <hemisphereLight args={['#4a5c55', '#0b0f0e', 0.5]} />
+          <directionalLight position={[3, 4, 3]} intensity={1} />
+          <pointLight position={[-2.5, -1.5, 3]} intensity={3} color="#dfe6e3" />
+          <Suspense fallback={null}>
+            <SpinningOrbModel spinCount={spinCount} />
+          </Suspense>
+        </Canvas>
+      </button>
+    </div>
+  );
+}
 
 export default function ComparisonSection() {
   const [index, setIndex] = useState(0);
@@ -65,28 +166,36 @@ export default function ComparisonSection() {
   }
 
   return (
-    <section className="border-t border-line bg-surface/40">
+    <section id="comparison" className="border-t border-line bg-surface/40">
       <div className="mx-auto max-w-6xl px-6 py-20">
         <p className="mb-2 inline-block rounded-sm bg-signal px-2 py-1 font-mono text-xs font-medium text-ink">
           Why not just Slack it
         </p>
         <h2 className="mt-4 max-w-lg text-2xl font-semibold text-paper sm:text-3xl">
-          The DM thread isn&apos;t a secrets manager
+          The <span className="text-signal">DM thread</span> isn&apos;t a secrets manager
         </h2>
-        <p className="mt-3 max-w-lg text-sm text-mist">
-          Click the sphere to spin through how EnvGuard stacks up against manual sharing and the tools people reach for instead.
-        </p>
 
-        {/* mobile / tablet: simple stacked layout, no lines, no absolute positioning */}
-        <div className="mt-14 flex flex-col items-center gap-10 lg:hidden">
-          <Sphere
-            current={current}
-            spinning={spinning}
+        {/* mobile / tablet */}
+        <div className="mt-14 flex flex-col items-center gap-6 lg:hidden">
+          <SpinningOrb
             spinCount={spinCount}
             onClick={handleNext}
             className="h-56 w-56 sm:h-64 sm:w-64"
           />
-          <div className="flex w-full max-w-sm flex-col gap-8">
+          <div className="flex flex-wrap justify-center gap-2">
+            {COMPARISONS.map((c, i) => (
+              <button
+                key={c.tag}
+                onClick={() => goTo(i)}
+                className={`rounded-sm border px-3 py-1.5 font-mono text-xs transition-colors ${
+                  i === index ? 'border-signal text-signal' : 'border-line text-mist hover:text-paper'
+                }`}
+              >
+                {c.tag}
+              </button>
+            ))}
+          </div>
+          <div className="mt-2 flex w-full max-w-sm flex-col gap-8">
             {current.points.map((point, i) => (
               <div
                 key={`${index}-${i}`}
@@ -100,123 +209,63 @@ export default function ComparisonSection() {
           </div>
         </div>
 
-        {/* desktop: lines + evenly spaced points + sphere on the right, all sharing one coordinate space */}
-        <div className="relative mt-16 hidden lg:block lg:h-[420px]">
-          <svg
-            className="pointer-events-none absolute inset-0 h-full w-full"
-            viewBox="0 0 1000 420"
-            preserveAspectRatio="none"
-            aria-hidden="true"
-          >
-            <path
-              d={`M280,${ROW_Y[0]} C480,${ROW_Y[0]} 580,${ROW_Y[1] - 30} 660,${ROW_Y[1] - 15}`}
-              fill="none"
-              stroke="#3A4A45"
-              strokeWidth="1"
-            />
-            <path d={`M280,${ROW_Y[1]} L660,${ROW_Y[1]}`} fill="none" stroke="#3A4A45" strokeWidth="1" />
-            <path
-              d={`M280,${ROW_Y[2]} C480,${ROW_Y[2]} 580,${ROW_Y[1] + 30} 660,${ROW_Y[1] + 15}`}
-              fill="none"
-              stroke="#3A4A45"
-              strokeWidth="1"
-            />
-            {ROW_Y.map((y) => (
-              <circle key={y} cx="280" cy={y} r="3.5" fill="#B6FF3C" />
-            ))}
-          </svg>
-
-          {current.points.map((point, i) => (
-            <div
-              key={`${index}-${i}`}
-              className="absolute max-w-[280px] -translate-y-1/2 opacity-0 animate-[fadeUp_500ms_ease_forwards]"
-              style={{ top: `${(ROW_Y[i] / 420) * 100}%`, animationDelay: `${i * 100}ms` }}
-            >
-              <p className="font-mono text-sm text-signal">0{i + 1}</p>
-              <p className="mt-2 text-sm leading-relaxed text-mist">{point}</p>
-            </div>
-          ))}
-
-          <div className="absolute right-0 top-1/2 -translate-y-1/2">
-            <Sphere
-              current={current}
-              spinning={spinning}
-              spinCount={spinCount}
-              onClick={handleNext}
-              className="h-[300px] w-[300px]"
-            />
+        {/* desktop: competitor list | orb | points */}
+        <div className="mt-16 hidden lg:grid lg:grid-cols-[200px_360px_1fr] lg:items-center lg:gap-10">
+          <div className="flex flex-col gap-1">
+            {COMPARISONS.map((c, i) => {
+              const isActive = i === index;
+              return (
+                <button
+                  key={c.tag}
+                  onClick={() => goTo(i)}
+                  className="group flex flex-col items-start gap-0.5 border-l-2 py-3 pl-4 text-left transition-colors"
+                  style={{ borderColor: isActive ? '#B6FF3C' : '#3A4A45' }}
+                >
+                  <span
+                    className={`text-lg font-medium transition-colors ${
+                      isActive ? 'text-signal' : 'text-paper/70 group-hover:text-paper'
+                    }`}
+                  >
+                    {c.tag}
+                  </span>
+                  <span className="text-xs text-mist">{c.sub}</span>
+                </button>
+              );
+            })}
           </div>
-        </div>
 
-        <div className="mt-10 flex justify-center gap-2 lg:justify-start">
-          {COMPARISONS.map((c, i) => (
-            <button
-              key={c.tag}
-              onClick={() => goTo(i)}
-              aria-label={`Show comparison vs ${c.tag}`}
-              className={`h-1.5 rounded-full transition-all ${
-                i === index ? 'w-6 bg-signal' : 'w-1.5 bg-line'
-              }`}
-            />
-          ))}
+          <div className="flex justify-center">
+            <SpinningOrb spinCount={spinCount} onClick={handleNext} className="h-[360px] w-[360px]" />
+          </div>
+
+          <div className="relative h-[420px]">
+            <svg
+              className="pointer-events-none absolute inset-0 h-full w-full"
+              viewBox="0 0 640 420"
+              preserveAspectRatio="none"
+              aria-hidden="true"
+            >
+              <path d="M20,210 C120,210 120,90 150,80" fill="none" stroke="#3A4A45" strokeWidth="1" />
+              <path d="M20,210 L150,210" fill="none" stroke="#3A4A45" strokeWidth="1" />
+              <path d="M20,210 C120,210 120,330 150,340" fill="none" stroke="#3A4A45" strokeWidth="1" />
+              {ROW_Y.map((y) => (
+                <circle key={y} cx="150" cy={y} r="3.5" fill="#B6FF3C" />
+              ))}
+            </svg>
+
+            {current.points.map((point, i) => (
+              <div
+                key={`${index}-${i}`}
+                className="absolute max-w-[320px] -translate-y-1/2 opacity-0 animate-[fadeUp_500ms_ease_forwards]"
+                style={{ left: '25%', top: `${(ROW_Y[i] / 420) * 100}%`, animationDelay: `${i * 100}ms` }}
+              >
+                <p className="font-mono text-sm text-signal">0{i + 1}</p>
+                <p className="mt-2 text-sm leading-relaxed text-mist">{point}</p>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </section>
-  );
-}
-
-function Sphere({ current, spinning, spinCount, onClick, className = '' }) {
-  return (
-    <button
-      onClick={onClick}
-      aria-label="Show next comparison"
-      className={`group relative rounded-full outline-none ${className}`}
-    >
-      <div
-        key={spinning ? `boost-${spinCount}` : 'idle'}
-        className="absolute inset-0 overflow-hidden rounded-full"
-        style={{
-          animation: spinning
-            ? 'ballSpinFast 900ms cubic-bezier(0.33, 1, 0.68, 1) 1'
-            : 'ballSpinIdle 10s linear infinite',
-        }}
-      >
-        <div
-          className="absolute inset-y-0 left-0 w-1/2"
-          style={{ background: 'linear-gradient(90deg, #16250f 0%, #33531f 100%)' }}
-        />
-        <div
-          className="absolute inset-y-0 right-0 w-1/2"
-          style={{
-            background:
-              'radial-gradient(circle at 0% 50%, rgba(182,255,60,0.85) 0%, rgba(182,255,60,0.4) 55%, rgba(182,255,60,0.15) 100%)',
-            backdropFilter: 'blur(20px)',
-            WebkitBackdropFilter: 'blur(20px)',
-          }}
-        />
-      </div>
-
-      <div
-        className="pointer-events-none absolute inset-0 rounded-full"
-        style={{
-          background:
-            'radial-gradient(circle at 32% 28%, rgba(255,255,255,0.35), transparent 30%), radial-gradient(circle at 50% 50%, transparent 55%, rgba(0,0,0,0.55) 100%)',
-        }}
-      />
-      <span className="pointer-events-none absolute inset-0 rounded-full ring-1 ring-inset ring-signal/25 transition-colors group-hover:ring-signal/60" />
-
-      <span
-        className={`relative z-10 flex h-full flex-col items-center justify-center px-6 text-center transition-opacity duration-200 sm:px-8 lg:items-end lg:px-10 lg:text-right ${
-          spinning ? 'opacity-0' : 'opacity-100'
-        }`}
-      >
-        <span className="font-mono text-[10px] uppercase tracking-widest text-mist">vs</span>
-        <span className="mt-1 text-base font-medium text-paper sm:text-lg">{current.tag}</span>
-        <span className="mt-1 text-xs text-mist">{current.sub}</span>
-        <span className="mt-3 font-mono text-[10px] uppercase tracking-widest text-signal sm:mt-4">
-          click to spin
-        </span>
-      </span>
-    </button>
   );
 }

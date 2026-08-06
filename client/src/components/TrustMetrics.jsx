@@ -5,10 +5,10 @@ import { useGLTF, OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
 
 const STATS = [
-  { value: 'AES-256-GCM', label: 'Encryption before storage — the server only ever sees ciphertext' },
+  { value: 'AES-256-GCM', label: 'Encryption before storage, the server only ever sees ciphertext' },
   { value: '1-time', label: 'Share links expire after a single reveal' },
   { value: 'Immutable', label: "Audit log entries can't be edited or deleted, even by admins" },
-  { value: 'CLI + Web', label: 'Full feature parity — manage secrets from your terminal or the dashboard' },
+  { value: 'CLI + Web', label: 'Full feature parity manage secrets from your terminal or the dashboard' },
 ];
 
 const DARK_MAT = new THREE.MeshStandardMaterial({ color: '#1c2622', metalness: 0.4, roughness: 0.4 });
@@ -73,15 +73,10 @@ useGLTF.preload('/models/keylock.glb');
 function LockScene({ open }) {
   return (
     <Canvas camera={{ position: [3.2, 2, 5], fov: 34 }} dpr={[1, 1.5]} gl={{ alpha: true }}>
-      {/* soft all-around fill so no rotation angle goes fully dark */}
       <ambientLight intensity={0.5} />
       <hemisphereLight args={['#4a5c55', '#0b0f0e', 0.5]} />
-
-      {/* key light (neutral, keeps the metal readable) */}
       <directionalLight position={[4, 5, 3]} intensity={1.1} />
       <directionalLight position={[-4, 2, -3]} intensity={0.4} />
-
-      {/* strong signal-green rays raking across the lock */}
       <pointLight position={[-3, -1, 2]} intensity={22} color="#B6FF3C" distance={8} decay={2} />
       <pointLight position={[3, 2.5, -2]} intensity={8} color="#B6FF3C" distance={8} decay={2} />
       <spotLight
@@ -94,7 +89,6 @@ function LockScene({ open }) {
         distance={9}
         decay={2}
       />
-
       <Suspense fallback={null}>
         <KeyLockModel open={open} />
       </Suspense>
@@ -132,10 +126,15 @@ export default function TrustMetrics() {
   }, []);
 
   return (
-    <section ref={sectionRef} className="border-t border-line">
+    <section id="metrics" ref={sectionRef} className="border-t border-line">
       <div className="mx-auto max-w-6xl px-6 py-20">
-        {/* desktop / tablet: side-by-side */}
-        <div className="hidden lg:grid lg:grid-cols-[1fr_420px] lg:items-center lg:gap-12">
+        <p className="mb-2 inline-block rounded-sm bg-signal px-2 py-1 font-mono text-xs font-medium text-ink">
+          Metrics
+        </p>
+        <h2 className="mt-4 max-w-lg text-2xl font-semibold text-paper sm:text-3xl">
+          What&apos;s actually <span className="text-signal">guaranteed</span>, not just claimed
+        </h2>
+        <div className="mt-4 hidden lg:grid lg:grid-cols-[1fr_420px] lg:items-center lg:gap-12">
           <div className="grid grid-cols-1 gap-8 sm:grid-cols-2">
             {STATS.map((s, i) => (
               <div
@@ -178,7 +177,7 @@ export default function TrustMetrics() {
         </div>
 
         {/* mobile: model on top, stats stacked below */}
-        <div className="lg:hidden">
+        <div className="mt-14 lg:hidden">
           <div className="relative mx-auto h-[280px] w-full max-w-sm">
             <div
               className="pointer-events-none absolute inset-0"
