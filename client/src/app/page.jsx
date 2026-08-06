@@ -2,6 +2,10 @@ import Link from 'next/link';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import FlowDiagram from '@/components/FlowDiagram';
+import ArchitectureFlow from '@/components/ArchitectureFlow';
+import ComparisonSection from '@/components/ComparisonSection';
+import TrustMetrics from '@/components/TrustMetrics';
+import ScrollRail from '@/components/ScrollRail';
 
 const FEATURES = [
   {
@@ -22,17 +26,17 @@ const FEATURES = [
   {
     label: 'Instant revocation',
     title: 'Cut off access the moment someone leaves',
-    body: 'Admins revoke a collaborator\u2019s access instantly no rotating every key in the project by hand.',
+    body: "Admins revoke a collaborator's access instantly — no rotating every key in the project by hand.",
   },
   {
     label: 'Temporary sessions',
     title: 'Time-boxed access windows',
-    body: 'Configure session expiration so access to sensitive projects doesn\u2019t linger longer than it should.',
+    body: "Configure session expiration so access to sensitive projects doesn't linger longer than it should.",
   },
   {
     label: 'Read-once policy',
     title: 'One-time reveal for the most sensitive keys',
-    body: 'Mark a secret as read-once so it\u2019s guaranteed to be seen by exactly one person, exactly one time.',
+    body: "Mark a secret as read-once so it's guaranteed to be seen by exactly one person, exactly one time.",
   },
 ];
 
@@ -40,8 +44,9 @@ export default function LandingPage() {
   return (
     <>
       <Navbar />
+      <ScrollRail />
 
-      <section className="mx-auto max-w-6xl px-6 pb-20 pt-16 sm:pt-24">
+      <section id="hero" className="mx-auto max-w-6xl px-6 pb-20 pt-16 sm:pt-24">
         <div className="grid grid-cols-1 items-center gap-12 lg:grid-cols-2">
           <div>
             <p className="mb-4 font-mono text-xs uppercase tracking-widest text-signal">
@@ -71,6 +76,10 @@ export default function LandingPage() {
         </div>
       </section>
 
+      <section id="metrics">
+        <TrustMetrics />
+      </section>
+
       <section id="features" className="border-t border-line bg-surface/40">
         <div className="mx-auto max-w-6xl px-6 py-20">
           <p className="mb-2 inline-block rounded-sm bg-signal px-2 py-1 font-mono text-xs font-medium text-ink">
@@ -96,6 +105,12 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
+
+      <ArchitectureFlow />
+
+      <div id="comparison">
+        <ComparisonSection />
+      </div>
 
       <section id="how-it-works" className="border-t border-line bg-surface/40">
         <div className="mx-auto max-w-6xl px-6 py-20 text-center">
