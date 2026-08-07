@@ -39,6 +39,36 @@ const FEATURES = [
   },
 ];
 
+const GET_STARTED_POINTS = [
+  {
+    title: 'Encrypted client-side before it ever reaches our servers',
+    icon: (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <rect x="5" y="11" width="14" height="9" rx="1.5" stroke="currentColor" strokeWidth="1.8" />
+        <path d="M8 11V8a4 4 0 0 1 8 0v3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      </svg>
+    ),
+  },
+  {
+    title: 'Role-based access, revoked instantly when someone leaves',
+    icon: (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M12 2l7 3v6c0 5-3.4 8.4-7 10-3.6-1.6-7-5-7-10V5l7-3z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+        <path d="M9 12l2 2 4-4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    ),
+  },
+  {
+    title: 'A CLI and web dashboard with full feature parity',
+    icon: (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <rect x="2" y="4" width="20" height="16" rx="1.5" stroke="currentColor" strokeWidth="1.8" />
+        <path d="M6 9l4 3-4 3M13 15h5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    ),
+  },
+];
+
 export default function LandingPage() {
   return (
     <>
@@ -106,20 +136,58 @@ export default function LandingPage() {
 
       <ComparisonSection />
 
-      <section id="get-started" className="border-t border-line bg-surface/40">
-        <div className="mx-auto max-w-6xl px-6 py-20 text-center">
-          <h2 className="text-2xl font-semibold text-paper sm:text-3xl">
-            Your secrets, <span className="text-signal">encrypted</span> before they ever leave your browser.
-          </h2>
-          <p className="mx-auto mt-4 max-w-md text-sm text-mist">
-            Set up your first project in a few minutes.
-          </p>
-          <Link
-            href="/signup"
-            className="mt-8 inline-block rounded-sm bg-signal px-6 py-3 text-sm font-medium text-ink hover:bg-signal/90"
-          >
-            Get started free
-          </Link>
+      <section id="get-started" className="border-t border-line">
+        <div className="mx-auto max-w-6xl px-6 py-16">
+          <div className="relative overflow-hidden rounded-2xl border border-line bg-surface">
+            {/* stripe texture, visible across the full card */}
+            <div
+              className="pointer-events-none absolute inset-0"
+              style={{
+                background:
+                  'repeating-linear-gradient(90deg, rgba(231,236,234,0.06) 0px, rgba(231,236,234,0.06) 1px, transparent 1px, transparent 16px)',
+                maskImage: 'linear-gradient(90deg, transparent 30%, black 90%)',
+                WebkitMaskImage: 'linear-gradient(90deg, transparent 30%, black 90%)',
+              }}
+            />
+            {/* soft glow, not a full wash — stops well short of opaque */}
+            <div
+              className="pointer-events-none absolute inset-0"
+              style={{
+                background: 'linear-gradient(90deg, transparent 0%, rgba(182,255,60,0.05) 55%, rgba(182,255,60,0.16) 100%)',
+              }}
+            />
+
+            <div className="relative flex flex-col gap-8 p-8 sm:p-10 lg:flex-row lg:items-center lg:justify-between">
+              <div className="lg:max-w-md">
+                <h2 className="text-2xl font-semibold text-paper sm:text-3xl">
+                  Your secrets, <span className="text-signal">encrypted</span> before they ever leave your browser.
+                </h2>
+                <p className="mt-3 text-sm text-mist">
+                  Set up your first project in a few minutes, no plaintext ever touches our servers.
+                </p>
+                <Link
+                  href="/signup"
+                  className="mt-6 inline-block rounded-sm bg-signal px-6 py-3 text-sm font-medium text-ink hover:bg-signal/90"
+                >
+                  Get started free
+                </Link>
+              </div>
+
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 lg:max-w-lg lg:shrink-0">
+                {GET_STARTED_POINTS.map((pt) => (
+                  <div
+                    key={pt.title}
+                    className="flex items-start gap-3 rounded-lg border border-line/60 bg-ink/40 p-4 backdrop-blur-sm"
+                  >
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-signal text-ink">
+                      {pt.icon}
+                    </span>
+                    <p className="text-xs leading-relaxed text-mist">{pt.title}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 

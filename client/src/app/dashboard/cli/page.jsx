@@ -31,7 +31,7 @@ function TerminalIcon() {
 
 export default function CliPage() {
   return (
-    <div className="mx-auto max-w-4xl px-6 py-12">
+    <div className="mx-auto max-w-6xl px-6 py-12">
       <Link href="/dashboard" className="text-sm text-mist hover:text-paper">
         &larr; Dashboard
       </Link>
@@ -45,7 +45,7 @@ export default function CliPage() {
           <h1 className="mt-1 text-2xl font-semibold text-paper sm:text-3xl">
             Manage secrets without leaving the terminal
           </h1>
-          <p className="mt-2 max-w-xl text-sm leading-relaxed text-mist">
+          <p className="mt-2 max-w-xl text-md leading-relaxed text-mist">
             Authenticate once, then list, reveal, and sync environment variables directly from a
             terminal, including the one built into VS Code.
           </p>

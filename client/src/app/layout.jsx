@@ -5,27 +5,46 @@ import './globals.css';
 const inter = Inter({ subsets: ['latin'], variable: '--font-sans' });
 const jetbrains = JetBrains_Mono({ subsets: ['latin'], variable: '--font-mono' });
 
+const SITE_URL = 'https://env-guardd.vercel.app';
+
 export const metadata = {
-  metadataBase: new URL('https://env-guardd.vercel.app'),
+  metadataBase: new URL(SITE_URL),
   title: {
-    default: 'envguard — stop pasting .env files into Slack',
-    template: '%s · envguard',
+    default: 'EnvGuard: Encrypted .env & Secrets Management for Teams',
+    template: '%s · EnvGuard',
   },
   description:
-    'Encrypted, role-based environment variable management for teams. Organize secrets by company, project, and environment — with audit logs, one-time share links, and a full CLI.',
+    'Stop pasting .env files into Slack. EnvGuard encrypts environment variables client-side and manages access by company, project, and environment, with audit logs, one-time share links, and a full CLI.',
+  keywords: [
+    'environment variables',
+    'secrets management',
+    'env file sharing',
+    '.env security',
+    'team secrets manager',
+    'encrypted secrets',
+    'developer tools',
+  ],
+  authors: [{ name: 'EnvGuard' }],
+  alternates: { canonical: '/' },
+  robots: { index: true, follow: true },
+  icons: {
+    icon: '/favicon.ico',
+    shortcut: '/favicon.ico',
+  },
   openGraph: {
-    title: 'envguard — stop pasting .env files into Slack',
-    description: 'Encrypted, role-based secrets management for teams, with a CLI.',
-    url: 'https://env-guardd.vercel.app',
-    siteName: 'envguard',
+    title: 'EnvGuard: Encrypted .env & Secrets Management for Teams',
+    description:
+      'Encrypted, role-based secrets management for teams, with audit logs, one-time share links, and a CLI.',
+    url: SITE_URL,
+    siteName: 'EnvGuard',
     type: 'website',
+    locale: 'en_US',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'envguard — stop pasting .env files into Slack',
+    title: 'EnvGuard: Encrypted .env & Secrets Management for Teams',
     description: 'Encrypted, role-based secrets management for teams, with a CLI.',
   },
-  icons: { icon: '/favicon.ico' },
 };
 
 export default function RootLayout({ children }) {
@@ -40,7 +59,8 @@ export default function RootLayout({ children }) {
             __html: JSON.stringify({
               '@context': 'https://schema.org',
               '@type': 'SoftwareApplication',
-              name: 'envguard',
+              name: 'EnvGuard',
+              url: SITE_URL,
               applicationCategory: 'DeveloperApplication',
               operatingSystem: 'Web',
               description:

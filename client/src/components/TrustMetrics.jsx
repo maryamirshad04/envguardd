@@ -17,6 +17,11 @@ const CORE_MAT = new THREE.MeshStandardMaterial({
 });
 const KEY_MAT = new THREE.MeshStandardMaterial({ color: '#c3cec9', metalness: 0.65, roughness: 0.22 });
 
+// how far pieces travel when unlocked — kept modest so they stay inside the camera frustum
+const TOP_OFFSET = 0.7;
+const BOTTOM_OFFSET = 0.7;
+const KEY_OFFSET = 0.45;
+
 function KeyLockModel({ open }) {
   const { scene } = useGLTF('/models/keylock.glb');
   const parts = useRef({});
@@ -54,10 +59,10 @@ function KeyLockModel({ open }) {
     const p = progress.current;
     const { Lock_Top, Lock_Bottom, Lock_Core, Key } = parts.current;
 
-    if (Lock_Top) Lock_Top.position.y = Lock_Top.userData.baseY + p * 0.9;
-    if (Lock_Bottom) Lock_Bottom.position.y = Lock_Bottom.userData.baseY - p * 0.9;
+    if (Lock_Top) Lock_Top.position.y = Lock_Top.userData.baseY + p * TOP_OFFSET;
+    if (Lock_Bottom) Lock_Bottom.position.y = Lock_Bottom.userData.baseY - p * BOTTOM_OFFSET;
     if (Key) {
-      Key.position.x = Key.userData.baseX - p * 0.6;
+      Key.position.x = Key.userData.baseX - p * KEY_OFFSET;
       Key.rotation.z = p * 0.5;
     }
     if (Lock_Core) {
@@ -72,7 +77,7 @@ useGLTF.preload('/models/keylock.glb');
 
 function LockScene({ open }) {
   return (
-    <Canvas camera={{ position: [3.2, 2, 5], fov: 34 }} dpr={[1, 1.5]} gl={{ alpha: true }}>
+    <Canvas camera={{ position: [3.6, 2.1, 6.4], fov: 40 }} dpr={[1, 1.5]} gl={{ alpha: true }}>
       <ambientLight intensity={0.5} />
       <hemisphereLight args={['#4a5c55', '#0b0f0e', 0.5]} />
       <directionalLight position={[4, 5, 3]} intensity={1.1} />
@@ -97,6 +102,7 @@ function LockScene({ open }) {
         enablePan={false}
         autoRotate
         autoRotateSpeed={0.6}
+        target={[0, -0.1, 0]}
         minPolarAngle={Math.PI / 2.6}
         maxPolarAngle={Math.PI / 2.1}
       />

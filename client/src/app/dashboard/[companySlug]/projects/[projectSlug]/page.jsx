@@ -110,7 +110,7 @@ export default function ProjectDetailPage() {
 
   if (loading) {
     return (
-      <div className="mx-auto max-w-4xl px-6 py-12">
+      <div className="mx-auto max-w-6xl px-6 py-12">
         <ProjectSkeleton />
       </div>
     );
@@ -119,7 +119,7 @@ export default function ProjectDetailPage() {
   const hasVariables = variables.length > 0;
 
   return (
-    <div className="mx-auto max-w-4xl px-6 py-12">
+    <div className="mx-auto max-w-6xl px-6 py-12">
       {/* Back link uses the company slug */}
       <Link href={`/dashboard/${companySlug}`} className="text-sm text-mist hover:text-paper">
         &larr; {companyName || 'Back to company'}

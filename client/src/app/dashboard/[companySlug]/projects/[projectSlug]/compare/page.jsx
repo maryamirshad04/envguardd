@@ -17,21 +17,21 @@ export default function CompareEnvironmentsPage() {
 
   if (c.loading) {
     return (
-      <div className="mx-auto max-w-5xl px-6 py-12">
+      <div className="mx-auto max-w-6xl px-6 py-12">
         <ProjectSkeleton />
       </div>
     );
   }
 
   return (
-    <div className="mx-auto max-w-5xl px-6 py-12">
+    <div className="mx-auto max-w-6xl px-6 py-12">
       <Link href={`/dashboard/${companySlug}/projects/${projectSlug}`} className="text-sm text-mist hover:text-paper">
         &larr; {c.project?.name || 'Back to project'}
       </Link>
 
       <p className="mt-4 font-mono text-xs uppercase tracking-wider text-signal">Compare</p>
       <h1 data-tour="cmp-heading" className="mt-2 text-2xl font-semibold text-paper">Compare environments</h1>
-      <p className="mt-1 text-sm text-mist">
+      <p className="mt-1 text-md text-mist">
         See what differs between two environments, then copy selected variables across.
       </p>
 

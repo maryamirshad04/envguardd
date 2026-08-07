@@ -239,7 +239,7 @@ export default function CompanyDetailPage() {
 
   if (loading) {
     return (
-      <div className="mx-auto max-w-5xl px-6 py-12">
+      <div className="mx-auto max-w-6xl px-6 py-12">
         <Skeleton className="h-4 w-24" />
         <Skeleton className="mt-4 h-3 w-16" />
         <Skeleton className="mt-3 h-8 w-48" />
@@ -251,7 +251,7 @@ export default function CompanyDetailPage() {
   const isAdmin = company?.role === 'admin';
 
   return (
-    <div className="mx-auto max-w-5xl px-6 py-12">
+    <div className="mx-auto max-w-6xl px-6 py-12">
       <Link href="/dashboard" className="text-sm text-mist hover:text-paper">
         &larr; All Teams
       </Link>
@@ -301,13 +301,13 @@ export default function CompanyDetailPage() {
 
       {tab === 'projects' && (
         <div className="mt-6">
-          <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="sticky top-16 z-30 flex flex-col gap-3 border-b border-line bg-ink/95 py-3 backdrop-blur sm:flex-row sm:items-center sm:justify-between">
             {projects.length > 0 ? (
               <SearchInput
                 value={projectSearch}
                 onChange={handleProjectSearchChange}
                 placeholder="Search projects..."
-                className="w-full max-w-xs"
+                className="w-full sm:max-w-sm"
               />
             ) : (
               <div />
@@ -319,7 +319,7 @@ export default function CompanyDetailPage() {
                 setNewProjectName('');
                 setCreatingProject(true);
               }}
-              className="rounded-sm bg-signal px-4 py-2 text-sm font-medium text-ink hover:bg-signal/90"
+              className="shrink-0 rounded-sm bg-signal px-4 py-2 text-sm font-medium text-ink hover:bg-signal/90"
             >
               + New project
             </button>
@@ -339,21 +339,35 @@ export default function CompanyDetailPage() {
             <>
               <ul className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {paginatedProjects.map((p) => (
-                  <li key={p.id} className="relative">
+                  <li key={p.id} className="group relative" style={{ perspective: '800px' }}>
                     <Link
                       href={`/dashboard/${companySlug}/projects/${p.slug}`}
-                      className="block rounded-sm border border-line bg-surface p-5 transition-colors hover:border-signal/40"
+                      className="relative block overflow-hidden rounded-lg border border-line bg-surface/70 p-5 shadow-md backdrop-blur-sm transition-all duration-300 ease-out hover:border-signal/50 hover:shadow-[0_20px_45px_-18px_rgba(182,255,60,0.3)]"
+                      style={{ transformStyle: 'preserve-3d' }}
+                      onMouseMove={(e) => {
+                        const el = e.currentTarget;
+                        const rect = el.getBoundingClientRect();
+                        const x = (e.clientX - rect.left) / rect.width - 0.5;
+                        const y = (e.clientY - rect.top) / rect.height - 0.5;
+                        el.style.transform = `rotateX(${y * -6}deg) rotateY(${x * 6}deg) translateY(-3px)`;
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.transform = 'rotateX(0deg) rotateY(0deg) translateY(0px)';
+                      }}
                     >
-                      <p className="font-mono text-xs uppercase tracking-wider text-signal">Project</p>
-                      <h3 className="mt-2 truncate pr-6 text-lg font-medium text-paper">{p.name}</h3>
-                      <p className="mt-1 text-xs text-mist">
+                      <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-signal/[0.04] via-transparent to-transparent transition-opacity duration-300 group-hover:from-signal/[0.1]" />
+                      <div className="pointer-events-none absolute -right-10 -top-10 h-32 w-32 rounded-full bg-signal/10 opacity-0 blur-2xl transition-opacity duration-500 group-hover:opacity-100" />
+
+                      <p className="relative font-mono text-xs uppercase tracking-wider text-signal">Project</p>
+                      <h3 className="relative mt-2 truncate pr-6 text-lg font-medium text-paper">{p.name}</h3>
+                      <p className="relative mt-1 text-xs text-mist">
                         Created {new Date(p.created_at).toLocaleDateString()}
                       </p>
                     </Link>
                     <button
                       onClick={(e) => openEdit(e, p)}
                       aria-label={`Edit ${p.name}`}
-                      className="absolute right-4 top-4 text-mist hover:text-paper"
+                      className="absolute right-4 top-4 z-10 text-mist hover:text-paper"
                     >
                       &#9998;
                     </button>

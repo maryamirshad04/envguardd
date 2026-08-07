@@ -110,7 +110,7 @@ export default function DashboardPage() {
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 data-tour="dash-heading" className="text-2xl font-semibold text-paper">Your Teams</h1>
-          <p className="mt-1 text-sm text-mist">
+          <p className="mt-1 text-md text-mist">
             Each workspace has its own team, projects, and encrypted variables.
           </p>
         </div>
@@ -151,12 +151,32 @@ export default function DashboardPage() {
         <>
           <ul className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {paginated.map((c, i) => (
-              <li key={c.slug} className="relative" data-tour={i === 0 ? 'dash-team-card' : undefined}>
+              <li
+                key={c.slug}
+                className="group relative"
+                style={{ perspective: '800px' }}
+                data-tour={i === 0 ? 'dash-team-card' : undefined}
+              >
                 <Link
                   href={`/dashboard/${c.slug}`}
-                  className="block rounded-sm border border-line bg-surface p-5 transition-colors hover:border-signal/40"
+                  className="relative block overflow-hidden rounded-lg border border-line bg-surface/70 p-5 shadow-md backdrop-blur-sm transition-all duration-300 ease-out hover:border-signal/50 hover:shadow-[0_20px_45px_-18px_rgba(182,255,60,0.3)]"
+                  style={{ transformStyle: 'preserve-3d' }}
+                  onMouseMove={(e) => {
+                    const el = e.currentTarget;
+                    const rect = el.getBoundingClientRect();
+                    const x = (e.clientX - rect.left) / rect.width - 0.5;
+                    const y = (e.clientY - rect.top) / rect.height - 0.5;
+                    el.style.transform = `rotateX(${y * -6}deg) rotateY(${x * 6}deg) translateY(-3px)`;
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = 'rotateX(0deg) rotateY(0deg) translateY(0px)';
+                  }}
                 >
-                  <div className="flex items-center justify-between">
+                  {/* gradient wash, brightens on hover */}
+                  <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-signal/[0.04] via-transparent to-transparent transition-opacity duration-300 group-hover:from-signal/[0.1]" />
+                  <div className="pointer-events-none absolute -right-10 -top-10 h-32 w-32 rounded-full bg-signal/10 opacity-0 blur-2xl transition-opacity duration-500 group-hover:opacity-100" />
+
+                  <div className="relative flex items-center justify-between">
                     <p className="font-mono text-xs uppercase tracking-wider text-signal">Team</p>
                     <span
                       className={`rounded-sm px-2 py-0.5 font-mono text-[10px] uppercase tracking-wide ${
@@ -167,7 +187,7 @@ export default function DashboardPage() {
                     </span>
                   </div>
 
-                  <div className="mt-2 flex items-center justify-between gap-2">
+                  <div className="relative mt-2 flex items-center justify-between gap-2">
                     <h3 className="truncate text-lg font-medium text-paper">{c.name}</h3>
                     {c.role === 'admin' && (
                       <button
@@ -180,7 +200,7 @@ export default function DashboardPage() {
                     )}
                   </div>
 
-                  <p className="mt-1 text-xs text-mist">
+                  <p className="relative mt-1 text-xs text-mist">
                     Created {new Date(c.created_at).toLocaleDateString()}
                   </p>
                 </Link>
