@@ -9,6 +9,7 @@ import Modal from '@/components/Modal';
 import GoogleSignInButton from '@/components/GoogleSignInButton';
 import Alert from '@/components/Alert';
 import Spinner from '@/components/Spinner';
+import AuthVisual from '@/components/AuthVisual';
 
 function EyeIcon() {
   return (
@@ -191,166 +192,175 @@ function LoginForm() {
     router.push(redirect);
   }
 
-  // Shared button styles for consistency
   const buttonClasses =
     'flex w-full items-center justify-center gap-2 rounded-sm border border-line bg-ink px-4 py-2 text-sm font-medium text-paper hover:border-signal disabled:opacity-50';
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-ink px-6">
-      <div className="w-full max-w-sm rounded-sm border border-line bg-surface p-8">
-        <Link href="/" className="font-mono text-sm text-signal">
-          <img
-            src="/lock.svg"
-            alt="Envguard icon"
-            className="inline-block h-5 w-5 text-signal align-middle"
-          />{' '}
-          <span className="align-middle">envguard</span>
-        </Link>
-
-        {!tempToken ? (
+    <main className="grid h-screen overflow-hidden bg-ink lg:grid-cols-2">
+      <AuthVisual
+        heading={
           <>
-            <h1 className="mt-6 text-2xl font-semibold text-paper">Welcome back</h1>
-            <p className="mt-1 text-sm text-mist">Log in to access your projects.</p>
+            Welcome back. Your <span className="text-signal">secrets</span> are exactly where you left
+            them.
+          </>
+        }
+        subheading="Log in to access your teams, projects, and encrypted variables."
+      />
+      <div className="flex h-full items-center justify-center overflow-y-auto px-6 py-6">
+        <div className="w-full max-w-sm rounded-sm border border-line bg-surface p-8">
+          <Link href="/" className="font-mono text-sm text-signal">
+            <img
+              src="/lock.svg"
+              alt="Envguard icon"
+              className="inline-block h-5 w-5 text-signal align-middle"
+            />{' '}
+            <span className="align-middle">envguard</span>
+          </Link>
 
-            <div className="mt-6 space-y-2">
-              <GoogleSignInButton
-                onCredential={handleGoogleCredential}
-                onError={setError}
-                className={buttonClasses}
-              />
-              {passkeySupported && (
-                <button
-                  type="button"
-                  onClick={handlePasskeyLogin}
-                  disabled={passkeyLoading}
+          {!tempToken ? (
+            <>
+              <h1 className="mt-6 text-2xl font-semibold text-paper">Welcome back</h1>
+              <p className="mt-1 text-sm text-mist">Log in to access your projects.</p>
+
+              <div className="mt-6 space-y-2">
+                <GoogleSignInButton
+                  onCredential={handleGoogleCredential}
+                  onError={setError}
                   className={buttonClasses}
-                >
-                  {passkeyLoading ? <Spinner className="h-4 w-4" /> : <KeyIcon />}
-                  {passkeyLoading ? 'Checking...' : 'Sign in with a passkey'}
-                </button>
-              )}
-            </div>
-
-            <div className="my-6 flex items-center gap-3">
-              <div className="h-px flex-1 bg-line" />
-              <span className="text-xs text-mist">or</span>
-              <div className="h-px flex-1 bg-line" />
-            </div>
-
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label htmlFor="email" className="mb-1 block text-sm text-mist">
-                  Email
-                </label>
-                <input
-                  id="email"
-                  type="email"
-                  required
-                  autoComplete="username"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  onFocus={() => setError('')}
-                  className="w-full rounded-sm border border-line bg-ink px-3 py-2 text-sm text-paper outline-none focus:border-signal"
-                  placeholder="you@company.com"
                 />
-              </div>
-              <div>
-                <div className="mb-1 flex items-center justify-between">
-                  <label htmlFor="password" className="block text-sm text-mist">
-                    Password
-                  </label>
-                  <Link href="/forgot-password" className="text-xs text-signal hover:underline">
-                    Forgot password?
-                  </Link>
-                </div>
-                <div className="relative">
-                  <input
-                    id="password"
-                    type={showPassword ? 'text' : 'password'}
-                    required
-                    autoComplete="current-password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    onFocus={() => setError('')}
-                    className="w-full rounded-sm border border-line bg-ink px-3 py-2 pr-10 text-sm text-paper outline-none focus:border-signal"
-                    placeholder="••••••••"
-                  />
+                {passkeySupported && (
                   <button
                     type="button"
-                    onClick={() => setShowPassword((v) => !v)}
-                    aria-label={showPassword ? 'Hide password' : 'Show password'}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-mist hover:text-paper"
+                    onClick={handlePasskeyLogin}
+                    disabled={passkeyLoading}
+                    className={buttonClasses}
                   >
-                    {showPassword ? <EyeOffIcon /> : <EyeIcon />}
+                    {passkeyLoading ? <Spinner className="h-4 w-4" /> : <KeyIcon />}
+                    {passkeyLoading ? 'Checking...' : 'Sign in with a passkey'}
                   </button>
-                </div>
+                )}
               </div>
 
-              {error && <Alert variant="error">{error}</Alert>}
+              <div className="my-6 flex items-center gap-3">
+                <div className="h-px flex-1 bg-line" />
+                <span className="text-xs text-mist">or</span>
+                <div className="h-px flex-1 bg-line" />
+              </div>
 
-              <button
-                type="submit"
-                disabled={loading}
-                className="flex w-full items-center justify-center gap-2 rounded-sm bg-signal px-4 py-2 text-sm font-medium text-ink hover:bg-signal/90 disabled:opacity-50"
-              >
-                {loading && <Spinner className="h-4 w-4" />}
-                {loading ? 'Logging in...' : 'Log in'}
-              </button>
-            </form>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div>
+                  <label htmlFor="email" className="mb-1 block text-sm text-mist">
+                    Email
+                  </label>
+                  <input
+                    id="email"
+                    type="email"
+                    required
+                    autoComplete="username"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    onFocus={() => setError('')}
+                    className="w-full rounded-sm border border-line bg-ink px-3 py-2 text-sm text-paper outline-none focus:border-signal"
+                    placeholder="you@company.com"
+                  />
+                </div>
+                <div>
+                  <div className="mb-1 flex items-center justify-between">
+                    <label htmlFor="password" className="block text-sm text-mist">
+                      Password
+                    </label>
+                    <Link href="/forgot-password" className="text-xs text-signal hover:underline">
+                      Forgot password?
+                    </Link>
+                  </div>
+                  <div className="relative">
+                    <input
+                      id="password"
+                      type={showPassword ? 'text' : 'password'}
+                      required
+                      autoComplete="current-password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      onFocus={() => setError('')}
+                      className="w-full rounded-sm border border-line bg-ink px-3 py-2 pr-10 text-sm text-paper outline-none focus:border-signal"
+                      placeholder="••••••••"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((v) => !v)}
+                      aria-label={showPassword ? 'Hide password' : 'Show password'}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-mist hover:text-paper"
+                    >
+                      {showPassword ? <EyeOffIcon /> : <EyeIcon />}
+                    </button>
+                  </div>
+                </div>
 
-            <p className="mt-6 text-center text-sm text-mist">
-              Don&apos;t have an account?{' '}
-              <Link href="/signup" className="text-signal hover:underline">
-                Sign up
-              </Link>
-            </p>
-          </>
-        ) : (
-          <>
-            <h1 className="mt-6 text-2xl font-semibold text-paper">Enter your code</h1>
-            <p className="mt-1 text-sm text-mist">
-              Open your authenticator app and enter the 6‑digit code for EnvGuard.
-            </p>
+                {error && <Alert variant="error">{error}</Alert>}
 
-            <form onSubmit={handleVerifyCode} className="mt-8 space-y-4">
-              <input
-                autoFocus
-                inputMode="numeric"
-                maxLength={6}
-                value={code}
-                onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
-                onFocus={() => setError('')}
-                placeholder="123456"
-                className="w-full rounded-sm border border-line bg-ink px-3 py-2 text-center font-mono text-lg tracking-[0.5em] text-paper outline-none focus:border-signal"
-              />
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="flex w-full items-center justify-center gap-2 rounded-sm bg-signal px-4 py-2 text-sm font-medium text-ink hover:bg-signal/90 disabled:opacity-50"
+                >
+                  {loading && <Spinner className="h-4 w-4" />}
+                  {loading ? 'Logging in...' : 'Log in'}
+                </button>
+              </form>
 
-              {error && <Alert variant="error">{error}</Alert>}
+              <p className="mt-6 text-center text-sm text-mist">
+                Don&apos;t have an account?{' '}
+                <Link href="/signup" className="text-signal hover:underline">
+                  Sign up
+                </Link>
+              </p>
+            </>
+          ) : (
+            <>
+              <h1 className="mt-6 text-2xl font-semibold text-paper">Enter your code</h1>
+              <p className="mt-1 text-sm text-mist">
+                Open your authenticator app and enter the 6‑digit code for EnvGuard.
+              </p>
 
-              <button
-                type="submit"
-                disabled={loading || code.length !== 6}
-                className="flex w-full items-center justify-center gap-2 rounded-sm bg-signal px-4 py-2 text-sm font-medium text-ink hover:bg-signal/90 disabled:opacity-50"
-              >
-                {loading && <Spinner className="h-4 w-4" />}
-                {loading ? 'Verifying...' : 'Verify'}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setTempToken(null);
-                  setCode('');
-                  setError('');
-                }}
-                className="w-full text-sm text-mist hover:text-paper"
-              >
-                &larr; Back
-              </button>
-            </form>
-          </>
-        )}
+              <form onSubmit={handleVerifyCode} className="mt-8 space-y-4">
+                <input
+                  autoFocus
+                  inputMode="numeric"
+                  maxLength={6}
+                  value={code}
+                  onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
+                  onFocus={() => setError('')}
+                  placeholder="123456"
+                  className="w-full rounded-sm border border-line bg-ink px-3 py-2 text-center font-mono text-lg tracking-[0.5em] text-paper outline-none focus:border-signal"
+                />
+
+                {error && <Alert variant="error">{error}</Alert>}
+
+                <button
+                  type="submit"
+                  disabled={loading || code.length !== 6}
+                  className="flex w-full items-center justify-center gap-2 rounded-sm bg-signal px-4 py-2 text-sm font-medium text-ink hover:bg-signal/90 disabled:opacity-50"
+                >
+                  {loading && <Spinner className="h-4 w-4" />}
+                  {loading ? 'Verifying...' : 'Verify'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTempToken(null);
+                    setCode('');
+                    setError('');
+                  }}
+                  className="w-full text-sm text-mist hover:text-paper"
+                >
+                  &larr; Back
+                </button>
+              </form>
+            </>
+          )}
+        </div>
       </div>
 
-      {/* Modal shown when a user tries passkey login but doesn't have a passkey yet */}
       <Modal
         open={noPasskeyModalOpen}
         onClose={() => setNoPasskeyModalOpen(false)}
@@ -378,7 +388,6 @@ function LoginForm() {
         </div>
       </Modal>
 
-      {/* Modal shown after a successful login to offer passkey setup */}
       <Modal
         open={passkeySetupPromptOpen}
         onClose={handleSkipPasskeySetup}
