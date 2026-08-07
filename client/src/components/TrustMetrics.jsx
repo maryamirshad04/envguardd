@@ -101,7 +101,7 @@ function LockScene({ open }) {
         enableZoom={false}
         enablePan={false}
         autoRotate
-        autoRotateSpeed={0.6}
+        autoRotateSpeed={1.5}
         target={[0, -0.1, 0]}
         minPolarAngle={Math.PI / 2.6}
         maxPolarAngle={Math.PI / 2.1}
