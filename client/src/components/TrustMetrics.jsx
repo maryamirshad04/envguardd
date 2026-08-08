@@ -7,6 +7,7 @@ import CanvasErrorBoundary from './CanvasErrorBoundary';
 import PerformanceWatchdog from './PerformanceWatchdog';
 import StaticLockIcon from './visuals/StaticLockIcon';
 import { useWebglSupported } from '@/lib/useWebglSupport';
+import { useCanvasContextLoss } from '@/lib/useCanvasContextLoss';
 
 const STATS = [
   { value: 'AES-256-GCM', label: 'Encryption before storage, the server only ever sees ciphertext' },
@@ -78,9 +79,9 @@ function KeyLockModel({ open }) {
 
 useGLTF.preload('/models/keylock.glb');
 
-function LockScene({ open, onSlow }) {
+function LockScene({ open, onSlow, onContextLost}) {
   return (
-    <Canvas camera={{ position: [3.6, 2.1, 6.4], fov: 40 }} dpr={[1, 1.5]} gl={{ alpha: true }}>
+    <Canvas camera={{ position: [3.6, 2.1, 6.4], fov: 40 }} dpr={[1, 1.5]} gl={{ alpha: true }} onCreated={onContextLost}>
       <ambientLight intensity={0.5} />
       <hemisphereLight args={['#4a5c55', '#0b0f0e', 0.5]} />
       <directionalLight position={[4, 5, 3]} intensity={1.1} />
@@ -118,12 +119,13 @@ function LockVisual({ open }) {
   const webglOk = useWebglSupported();
   const [degraded, setDegraded] = useState(false);
   const showModel = webglOk && !degraded;
+  const handleContextLost = useCanvasContextLoss(() => setDegraded(true));
 
   if (!showModel) return <StaticLockIcon open={open} className="h-full w-full" />;
 
   return (
     <CanvasErrorBoundary fallback={<StaticLockIcon open={open} className="h-full w-full" />}>
-      <LockScene open={open} onSlow={() => setDegraded(true)} />
+      <LockScene open={open} onSlow={() => setDegraded(true)} onContextLost={handleContextLost} />
     </CanvasErrorBoundary>
   );
 }

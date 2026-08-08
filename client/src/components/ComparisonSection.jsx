@@ -7,6 +7,7 @@ import CanvasErrorBoundary from './CanvasErrorBoundary';
 import PerformanceWatchdog from './PerformanceWatchdog';
 import StaticOrbIcon from './visuals/StaticOrbIcon';
 import { useWebglSupported } from '@/lib/useWebglSupport';
+import { useCanvasContextLoss } from '@/lib/useCanvasContextLoss';
 
 const COMPARISONS = [
   {
@@ -124,6 +125,7 @@ function SpinningOrb({ spinCount, onClick, className = '' }) {
   const webglOk = useWebglSupported();
   const [degraded, setDegraded] = useState(false);
   const showModel = webglOk && !degraded;
+  const handleContextLost = useCanvasContextLoss(() => setDegraded(true));
 
   return (
     <div className={`relative ${className}`}>
@@ -141,7 +143,7 @@ function SpinningOrb({ spinCount, onClick, className = '' }) {
       >
         {showModel ? (
           <CanvasErrorBoundary fallback={<StaticOrbIcon className="h-full w-full" />}>
-            <Canvas camera={{ position: [0, 0, 5.2], fov: 32 }} dpr={[1, 1.5]} gl={{ alpha: true }}>
+            <Canvas camera={{ position: [0, 0, 5.2], fov: 32 }} dpr={[1, 1.5]} gl={{ alpha: true }} onCreated={handleContextLost}>
               <ambientLight intensity={0.6} />
               <hemisphereLight args={['#4a5c55', '#0b0f0e', 0.5]} />
               <directionalLight position={[3, 4, 3]} intensity={1} />

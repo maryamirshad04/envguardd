@@ -7,6 +7,7 @@ import CanvasErrorBoundary from './CanvasErrorBoundary';
 import PerformanceWatchdog from './PerformanceWatchdog';
 import StaticLockIcon from './visuals/StaticLockIcon';
 import { useWebglSupported } from '@/lib/useWebglSupport';
+import { useCanvasContextLoss } from '@/lib/useCanvasContextLoss';
 
 const DARK_MAT = new THREE.MeshStandardMaterial({ color: '#1c2622', metalness: 0.4, roughness: 0.4 });
 const CORE_MAT = new THREE.MeshStandardMaterial({
@@ -51,6 +52,7 @@ export default function AuthVisual({ heading, subheading }) {
   const webglOk = useWebglSupported();
   const [degraded, setDegraded] = useState(false);
   const showModel = webglOk && !degraded;
+  const handleContextLost = useCanvasContextLoss(() => setDegraded(true));
 
   return (
     <div className="relative hidden h-full overflow-hidden bg-surface lg:flex lg:flex-col lg:justify-center">
@@ -78,7 +80,7 @@ export default function AuthVisual({ heading, subheading }) {
       <div className="relative z-10 mt-4 h-[460px] w-full xl:h-[500px]">
         {showModel ? (
           <CanvasErrorBoundary fallback={<StaticLockIcon className="h-full w-full" />}>
-            <Canvas camera={{ position: [3.1, 1.9, 5.6], fov: 40 }} dpr={[1, 1.5]} gl={{ alpha: true }}>
+            <Canvas camera={{ position: [3.1, 1.9, 5.6], fov: 40 }} dpr={[1, 1.5]} gl={{ alpha: true }} onCreated={handleContextLost}>
               <ambientLight intensity={0.5} />
               <hemisphereLight args={['#4a5c55', '#0b0f0e', 0.5]} />
               <directionalLight position={[4, 5, 3]} intensity={1.1} />
