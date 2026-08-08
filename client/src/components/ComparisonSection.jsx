@@ -3,6 +3,10 @@ import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { useGLTF } from '@react-three/drei';
 import * as THREE from 'three';
+import CanvasErrorBoundary from './CanvasErrorBoundary';
+import PerformanceWatchdog from './PerformanceWatchdog';
+import StaticOrbIcon from './visuals/StaticOrbIcon';
+import { useWebglSupported } from '@/lib/useWebglSupport';
 
 const COMPARISONS = [
   {
@@ -117,6 +121,10 @@ function SpinningOrbModel({ spinCount }) {
 useGLTF.preload('/models/compare-sphere.glb');
 
 function SpinningOrb({ spinCount, onClick, className = '' }) {
+  const webglOk = useWebglSupported();
+  const [degraded, setDegraded] = useState(false);
+  const showModel = webglOk && !degraded;
+
   return (
     <div className={`relative ${className}`}>
       <div
@@ -131,15 +139,22 @@ function SpinningOrb({ spinCount, onClick, className = '' }) {
         aria-label="Show next comparison"
         className="group relative h-full w-full outline-none"
       >
-        <Canvas camera={{ position: [0, 0, 5.2], fov: 32 }} dpr={[1, 1.5]} gl={{ alpha: true }}>
-          <ambientLight intensity={0.6} />
-          <hemisphereLight args={['#4a5c55', '#0b0f0e', 0.5]} />
-          <directionalLight position={[3, 4, 3]} intensity={1} />
-          <pointLight position={[-2.5, -1.5, 3]} intensity={3} color="#dfe6e3" />
-          <Suspense fallback={null}>
-            <SpinningOrbModel spinCount={spinCount} />
-          </Suspense>
-        </Canvas>
+        {showModel ? (
+          <CanvasErrorBoundary fallback={<StaticOrbIcon className="h-full w-full" />}>
+            <Canvas camera={{ position: [0, 0, 5.2], fov: 32 }} dpr={[1, 1.5]} gl={{ alpha: true }}>
+              <ambientLight intensity={0.6} />
+              <hemisphereLight args={['#4a5c55', '#0b0f0e', 0.5]} />
+              <directionalLight position={[3, 4, 3]} intensity={1} />
+              <pointLight position={[-2.5, -1.5, 3]} intensity={3} color="#dfe6e3" />
+              <PerformanceWatchdog onSlow={() => setDegraded(true)} />
+              <Suspense fallback={null}>
+                <SpinningOrbModel spinCount={spinCount} />
+              </Suspense>
+            </Canvas>
+          </CanvasErrorBoundary>
+        ) : (
+          <StaticOrbIcon className="h-full w-full" />
+        )}
       </button>
     </div>
   );

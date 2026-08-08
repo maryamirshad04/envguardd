@@ -1,8 +1,12 @@
 'use client';
-import { Suspense, useEffect, useRef } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { useGLTF } from '@react-three/drei';
 import * as THREE from 'three';
+import CanvasErrorBoundary from './CanvasErrorBoundary';
+import PerformanceWatchdog from './PerformanceWatchdog';
+import StaticLockIcon from './visuals/StaticLockIcon';
+import { useWebglSupported } from '@/lib/useWebglSupport';
 
 const DARK_MAT = new THREE.MeshStandardMaterial({ color: '#1c2622', metalness: 0.4, roughness: 0.4 });
 const CORE_MAT = new THREE.MeshStandardMaterial({
@@ -44,6 +48,10 @@ function FloatingKeyLock() {
 useGLTF.preload('/models/keylock.glb');
 
 export default function AuthVisual({ heading, subheading }) {
+  const webglOk = useWebglSupported();
+  const [degraded, setDegraded] = useState(false);
+  const showModel = webglOk && !degraded;
+
   return (
     <div className="relative hidden h-full overflow-hidden bg-surface lg:flex lg:flex-col lg:justify-center">
       <div
@@ -68,16 +76,23 @@ export default function AuthVisual({ heading, subheading }) {
       </div>
 
       <div className="relative z-10 mt-4 h-[460px] w-full xl:h-[500px]">
-        <Canvas camera={{ position: [3.1, 1.9, 5.6], fov: 40 }} dpr={[1, 1.5]} gl={{ alpha: true }}>
-          <ambientLight intensity={0.5} />
-          <hemisphereLight args={['#4a5c55', '#0b0f0e', 0.5]} />
-          <directionalLight position={[4, 5, 3]} intensity={1.1} />
-          <pointLight position={[-3, -1, 2]} intensity={18} color="#B6FF3C" distance={9} decay={2} />
-          <pointLight position={[3, 2.5, -2]} intensity={6} color="#B6FF3C" distance={9} decay={2} />
-          <Suspense fallback={null}>
-            <FloatingKeyLock />
-          </Suspense>
-        </Canvas>
+        {showModel ? (
+          <CanvasErrorBoundary fallback={<StaticLockIcon className="h-full w-full" />}>
+            <Canvas camera={{ position: [3.1, 1.9, 5.6], fov: 40 }} dpr={[1, 1.5]} gl={{ alpha: true }}>
+              <ambientLight intensity={0.5} />
+              <hemisphereLight args={['#4a5c55', '#0b0f0e', 0.5]} />
+              <directionalLight position={[4, 5, 3]} intensity={1.1} />
+              <pointLight position={[-3, -1, 2]} intensity={18} color="#B6FF3C" distance={9} decay={2} />
+              <pointLight position={[3, 2.5, -2]} intensity={6} color="#B6FF3C" distance={9} decay={2} />
+              <PerformanceWatchdog onSlow={() => setDegraded(true)} />
+              <Suspense fallback={null}>
+                <FloatingKeyLock />
+              </Suspense>
+            </Canvas>
+          </CanvasErrorBoundary>
+        ) : (
+          <StaticLockIcon className="h-full w-full" />
+        )}
       </div>
     </div>
   );

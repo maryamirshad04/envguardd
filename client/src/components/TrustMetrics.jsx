@@ -3,6 +3,10 @@ import { Suspense, useEffect, useRef, useState } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { useGLTF, OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
+import CanvasErrorBoundary from './CanvasErrorBoundary';
+import PerformanceWatchdog from './PerformanceWatchdog';
+import StaticLockIcon from './visuals/StaticLockIcon';
+import { useWebglSupported } from '@/lib/useWebglSupport';
 
 const STATS = [
   { value: 'AES-256-GCM', label: 'Encryption before storage, the server only ever sees ciphertext' },
@@ -17,7 +21,6 @@ const CORE_MAT = new THREE.MeshStandardMaterial({
 });
 const KEY_MAT = new THREE.MeshStandardMaterial({ color: '#c3cec9', metalness: 0.65, roughness: 0.22 });
 
-// how far pieces travel when unlocked — kept modest so they stay inside the camera frustum
 const TOP_OFFSET = 0.7;
 const BOTTOM_OFFSET = 0.7;
 const KEY_OFFSET = 0.45;
@@ -75,7 +78,7 @@ function KeyLockModel({ open }) {
 
 useGLTF.preload('/models/keylock.glb');
 
-function LockScene({ open }) {
+function LockScene({ open, onSlow }) {
   return (
     <Canvas camera={{ position: [3.6, 2.1, 6.4], fov: 40 }} dpr={[1, 1.5]} gl={{ alpha: true }}>
       <ambientLight intensity={0.5} />
@@ -94,6 +97,7 @@ function LockScene({ open }) {
         distance={9}
         decay={2}
       />
+      <PerformanceWatchdog onSlow={onSlow} />
       <Suspense fallback={null}>
         <KeyLockModel open={open} />
       </Suspense>
@@ -107,6 +111,20 @@ function LockScene({ open }) {
         maxPolarAngle={Math.PI / 2.1}
       />
     </Canvas>
+  );
+}
+
+function LockVisual({ open }) {
+  const webglOk = useWebglSupported();
+  const [degraded, setDegraded] = useState(false);
+  const showModel = webglOk && !degraded;
+
+  if (!showModel) return <StaticLockIcon open={open} className="h-full w-full" />;
+
+  return (
+    <CanvasErrorBoundary fallback={<StaticLockIcon open={open} className="h-full w-full" />}>
+      <LockScene open={open} onSlow={() => setDegraded(true)} />
+    </CanvasErrorBoundary>
   );
 }
 
@@ -169,7 +187,7 @@ export default function TrustMetrics() {
                 }}
               />
               <div className="relative h-full w-full">
-                <LockScene open={open} />
+                <LockVisual open={open} />
               </div>
             </div>
 
@@ -193,7 +211,7 @@ export default function TrustMetrics() {
               }}
             />
             <div className="relative h-full w-full">
-              <LockScene open={open} />
+              <LockVisual open={open} />
             </div>
           </div>
 

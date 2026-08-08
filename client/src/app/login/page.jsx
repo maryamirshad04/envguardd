@@ -200,8 +200,7 @@ function LoginForm() {
       <AuthVisual
         heading={
           <>
-            Welcome back. Your <span className="text-signal">secrets</span> are exactly where you left
-            them.
+            Welcome back. Your <span className="text-signal">secrets</span> are waiting.
           </>
         }
         subheading="Log in to access your teams, projects, and encrypted variables."
