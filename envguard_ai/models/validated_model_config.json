@@ -1,0 +1,65 @@
+{
+  "model_name": "EnvGuard_Isolation_Forest_Validated_3Way",
+  "algorithm": "IsolationForest",
+  "library": "sklearn",
+  "n_estimators": 100,
+  "max_samples": "512",
+  "contamination": 0.01,
+  "random_state": 42,
+  "feature_count": 15,
+  "features": [
+    "access_count_1h",
+    "access_count_24h",
+    "is_prod_access",
+    "prod_ratio_24h",
+    "user_prod_history_ratio",
+    "env_divergence_score",
+    "after_hours_flag",
+    "hour_sin",
+    "hour_cos",
+    "is_weekend",
+    "sensitive_op_flag",
+    "read_burst_count_5m",
+    "step_up_failure_count_24h",
+    "distinct_ip_count_24h",
+    "user_activity_zscore_24h"
+  ],
+  "training_partition": {
+    "days": "Days 0-49 (2026-08-01 to 2026-09-19)",
+    "records": 20169,
+    "contamination_actual": 0.0
+  },
+  "validation_partition": {
+    "days": "Days 50-69 (2026-09-20 to 2026-10-09)",
+    "records": 8860,
+    "anomalies": 191,
+    "metrics": {
+      "val_roc_auc": 0.9785,
+      "val_pr_auc": 0.7164,
+      "val_precision": 0.5991,
+      "val_recall": 0.6806,
+      "val_f1_score": 0.6373
+    }
+  },
+  "test_partition": {
+    "days": "Days 70-89 (2026-10-10 to 2026-10-29)",
+    "records": 8246,
+    "anomalies": 152,
+    "metrics": {
+      "roc_auc": 0.9609,
+      "pr_auc": 0.7335,
+      "precision": 0.6111,
+      "recall": 0.6513,
+      "f1_score": 0.6306,
+      "false_positive_rate": 0.0078
+    }
+  },
+  "threshold_documentation": {
+    "sklearn_internal_offset": -0.628349350506779,
+    "operational_anomaly_threshold": 0.0,
+    "score_transformation_formula": "anomaly_score = -decision_function(X)",
+    "classification_rule": "is_anomalous = bool(anomaly_score >= 0.0)",
+    "score_interpretation": "Higher anomaly scores indicate greater anomalousness. Scores < 0.0 represent nominal inliers; scores >= 0.0 trigger step-up authentication."
+  },
+  "fit_timestamp": "2026-11-07T09:34:14.660613"
+}

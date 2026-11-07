@@ -1,0 +1,39 @@
+{
+  "model_name": "EnvGuard_Isolation_Forest_Native",
+  "algorithm": "IsolationForest",
+  "library": "sklearn",
+  "n_estimators": 100,
+  "max_samples": "512",
+  "contamination": 0.01,
+  "random_state": 42,
+  "feature_count": 15,
+  "features": [
+    "access_count_1h",
+    "access_count_24h",
+    "is_prod_access",
+    "prod_ratio_24h",
+    "user_prod_history_ratio",
+    "env_divergence_score",
+    "after_hours_flag",
+    "hour_sin",
+    "hour_cos",
+    "is_weekend",
+    "sensitive_op_flag",
+    "read_burst_count_5m",
+    "step_up_failure_count_24h",
+    "distinct_ip_count_24h",
+    "user_activity_zscore_24h"
+  ],
+  "train_rows": 24282,
+  "eval_rows": 12895,
+  "decision_threshold": 0.6317165240865377,
+  "metrics_on_eval": {
+    "roc_auc": 0.9692,
+    "pr_auc": 0.7415,
+    "precision": 0.6827,
+    "recall": 0.6939,
+    "f1_score": 0.6883,
+    "separation_score": 0.2157
+  },
+  "fit_timestamp": "2026-11-07T08:23:53.102881"
+}

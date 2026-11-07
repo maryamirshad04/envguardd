@@ -1,0 +1,7 @@
+{
+  "roc_auc": 0.7545,
+  "precision_at_flagged": 0.0,
+  "recall_insiders": 0.0,
+  "total_insider_days": 97,
+  "flagged_insider_days": 0
+}

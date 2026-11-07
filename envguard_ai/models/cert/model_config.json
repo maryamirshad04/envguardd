@@ -1,0 +1,13 @@
+{
+  "algorithm": "IsolationForest",
+  "library": "sklearn",
+  "n_estimators": 100,
+  "max_samples": "auto",
+  "contamination": 0.01,
+  "random_state": 42,
+  "n_jobs": -1,
+  "feature_count": 27,
+  "train_rows": 268979,
+  "fit_date": "2026-11-07T00:03:17.187917",
+  "selection_basis": "Unsupervised separation metric (normal\u2013tail gap, penalised for contamination > 0.05)"
+}

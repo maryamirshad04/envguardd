@@ -1,0 +1,38 @@
+{
+  "feature_count": 15,
+  "features": [
+    "access_count_1h",
+    "access_count_24h",
+    "is_prod_access",
+    "prod_ratio_24h",
+    "user_prod_history_ratio",
+    "env_divergence_score",
+    "after_hours_flag",
+    "hour_sin",
+    "hour_cos",
+    "is_weekend",
+    "sensitive_op_flag",
+    "read_burst_count_5m",
+    "step_up_failure_count_24h",
+    "distinct_ip_count_24h",
+    "user_activity_zscore_24h"
+  ],
+  "types": {
+    "access_count_1h": "float64",
+    "access_count_24h": "float64",
+    "is_prod_access": "float64",
+    "prod_ratio_24h": "float64",
+    "user_prod_history_ratio": "float64",
+    "env_divergence_score": "float64",
+    "after_hours_flag": "float64",
+    "hour_sin": "float64",
+    "hour_cos": "float64",
+    "is_weekend": "float64",
+    "sensitive_op_flag": "float64",
+    "read_burst_count_5m": "float64",
+    "step_up_failure_count_24h": "float64",
+    "distinct_ip_count_24h": "float64",
+    "user_activity_zscore_24h": "float64"
+  },
+  "description": "15 EnvGuard-native behavioral access and velocity features"
+}
