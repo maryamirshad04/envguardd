@@ -1,2 +1,8 @@
 .vercel
 .env*
+# Blender files
+*.blend
+*.blend1
+
+# Blender asset folders
+key&lock/
