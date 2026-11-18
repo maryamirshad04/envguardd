@@ -1,71 +1,495 @@
-# EnvGuardd
+# EnvGuard
 
-**A zero-knowledge secrets manager for environment variables.** Secrets are encrypted on your device, so a leaked database or a hacked server cannot read them.
+**Stop pasting `.env` files into Slack.**
 
-*Group 6 · Department of Computer Science, National University of Computer and Emerging Sciences (FAST-NUCES), Lahore*
+EnvGuard is a full-stack tool for teams to store, organize, and share environment variables without emailing plaintext secrets. It replaces manual `.env` sharing with authenticated, role-based access control, organized by **company → projects → environments → variables**.
 
-| Team member | Roll number |
-|---|---|
-| Walija Fatima | 23L-3055 |
-| Mirfaq Javaid | 23L-3061 |
-| Maryam Irshad | 23L-3093 |
-
-> **Status:** project proposal. This README describes what we plan to build.
+The **EnvGuard CLI** gives developers the same power directly from their terminal ideal for automation, CI/CD, and daily workflows.
 
 ---
 
-## The problem
+# Table of Contents
 
-API keys, database passwords and signing keys usually live in environment variables and `.env` files. In practice they get:
+- [What this is](#what-this-is)
+- [Features](#features)
+- [Tech Stack](#tech-stack)
+- [Admin Audit Logs](#admin-audit-logs)
+- [Compare Environments](#compare-environments)
+- [Architecture](#architecture)
+- [Getting Started](#getting-started)
+  - [1. Prerequisites](#1-prerequisites)
+  - [2. Clone and Install](#2-clone-and-install)
+  - [3. Set Up Supabase](#3-set-up-supabase)
+  - [4. Set Up Mailjet](#4-set-up-mailjet)
+  - [5. Set Up Google Cloud](#5-set-up-google-cloud)
+  - [6. Set Up Passkeys (WebAuthn)](#6-set-up-passkeys-webauthn)
+  - [7. Configure Environment Variables](#7-configure-environment-variables)
+  - [8. Run Locally](#8-run-locally)
+- [CLI – Command Line Interface](#cli--command-line-interface)
+  - [Installation](#installation)
+  - [Setup (API URL)](#setup-api-url)
+  - [Command Reference](#command-reference)
 
-- copied between developers over chat or email,
-- committed to repositories by mistake,
-- kept for years without rotation.
+---
 
-Even secrets managers usually trust the server fully: if the server, its database or an admin account is hacked, every secret can leak at once. Their audit logs can often be edited or deleted by the server without anyone noticing. Other common risks are one long-lived encryption key, keys made from weak passwords, and stolen browser sessions.
+# What this is
 
-## What EnvGuard is
+Most development teams still share `.env` files through Slack, WhatsApp, Discord, or email, leaving sensitive secrets stored in plaintext with no way to revoke access or track who has viewed them.
 
-A prototype with a **web app** and a **command-line tool (CLI)**. It uses passkey (WebAuthn) login, and all encryption and decryption happens on the client. The server stores only encrypted data.
+EnvGuard replaces that workflow with a secure centralized solution.
 
-Our aim: confidentiality that does not depend on the server, damage from a stolen key that stays contained, and a history of sensitive actions that anyone can verify.
+- **Company Workspaces** – Every user receives a default company on signup and can create additional workspaces.
+- **Role-Based Access Control** – Invite team members as **Admin** or **Member** with server-side permission enforcement.
+- **Projects & Environments** – Organize secrets into projects with Development, Staging, Production, and custom environments.
+- **Encrypted Variables** – Environment variables are encrypted using **AES-256-GCM** before being stored.
+- **One-Time Share Links** – Securely share variables through single-use, expiring links.
+- **Admin Audit Logs** – Every security-relevant action is recorded in an immutable audit log that is only accessible to project administrators.
+- **Environment Comparison & Sync** – Compare variables between two environments, identify differences, and securely synchronize selected variables.
+- **Command Line Interface** – Manage everything directly from the terminal without opening the web dashboard.
 
-## Features
+---
 
-| # | Feature | What it does |
-|---|---|---|
-| 1 | **Hardware-bound key** | The vault's key-encryption key is tied to your hardware authenticator through the WebAuthn **PRF extension**. |
-| 2 | **Envelope encryption** | Each environment (dev, prod, ...) has its own data key. One leaked key does not expose everything, and keys can be rotated from the CLI. |
-| 3 | **Tamper-evident audit log** | Every log entry is linked to the previous one by a hash. Any edit or deletion breaks the chain, and a verify command detects it. |
-| 4 | **Step-up authentication** | Sensitive actions on protected environments need an extra authentication check. |
-| 5 | **One-time secret sharing** | Share a secret through a self-destructing link, encrypted on the client. |
-| 6 | **Anomaly detection** | A model learns each user's normal access pattern and flags unusual behavior, for example someone who normally reads dev secrets by day suddenly listing every production secret at night. A flag triggers step-up authentication. |
+# Features
 
-The anomaly model uses **metadata only** (event type, time, user, environment). It never sees decrypted secret values.
+- Email & Password Authentication
+- JWT Authentication
+- Google OAuth Login
+- Passkey Authentication (WebAuthn)
+- Optional Two-Factor Authentication (2FA)
+- Company Management
+- Team Invitations via Email
+- Role-Based Authorization
+- Project Management
+- Environment Management
+- AES-256-GCM Encryption
+- Protected & Plain Variables
+- Bulk `.env` Import
+- `.env` Export
+- Copy Individual Variables
+- Copy Entire Environment
+- One-Time Secret Sharing
+- Expiring Share Links
+- Admin Audit Logs
+- Environment Comparison & Sync
+- Structured Logging with Pino
+- Complete CLI Support
 
-## Scope
+---
 
-**In scope:** web app and CLI, passkey login with WebAuthn PRF, client-side AES-GCM encryption, envelope encryption with key wrapping, hash-chained audit log, step-up authentication, one-time sharing, and a server-side anomaly model trained on audit metadata.
+# Tech Stack
 
-**Out of scope:** hardware security module (HSM) integration, single sign-on, formal certification, and authenticators without PRF support (except a clearly labeled password-based fallback).
+| Layer | Technology |
+|--------|------------|
+| Frontend | Next.js, React, Tailwind CSS |
+| Backend | Node.js, Express |
+| Database | Supabase (PostgreSQL) |
+| Authentication | JWT, bcrypt, Google OAuth, otplib, simplewebauthn |
+| Encryption | AES-256-GCM (Node Crypto) |
+| Email | Mailjet |
+| Logging | Pino |
+| CLI | Commander.js, Inquirer.js, Axios, Chalk, Ora, Clipboardy |
 
-EnvGuard is a prototype. It does not replace a production-grade secrets management service.
+---
 
-## Background and standards
+# Architecture
 
-- **WebAuthn and PRF:** the hardware authenticator produces a stable secret, and an encryption key is derived from it with **HKDF**.
-- **AES-GCM** encrypts data, and **AES Key Wrap** protects the keys.
-- **NIST SP 800-57** advises separate keys per purpose, regular rotation, and designs where losing one key does not expose all data.
-- **Secure logging:** Schneier and Kelsey, and Crosby and Wallach, show how hash-linked entries make logs tamper-evident.
-- **Isolation Forest** finds unusual events without labeled attack data.
+```text
+User
+ └── Company (Workspace)
+      ├── Members
+      ├── Invitations
+      └── Projects
+            └── Environments
+                  ├── Variables
+                  └── One-Time Share Links
+```
 
-## References
+---
 
-1. W3C, "Web Authentication: An API for Accessing Public Key Credentials, Level 3," W3C Recommendation, 2025.
-2. H. Krawczyk and P. Eronen, "HMAC-based Extract-and-Expand Key Derivation Function (HKDF)," RFC 5869, IETF, 2010.
-3. M. Dworkin, "Recommendation for Block Cipher Modes of Operation: Galois/Counter Mode (GCM) and GMAC," NIST SP 800-38D, 2007.
-4. J. Schaad and R. Housley, "Advanced Encryption Standard (AES) Key Wrap Algorithm," RFC 3394, IETF, 2002.
-5. E. Barker, "Recommendation for Key Management: Part 1 – General," NIST SP 800-57 Part 1 Rev. 5, 2020.
-6. B. Schneier and J. Kelsey, "Secure Audit Logs to Support Computer Forensics," ACM TISSEC, vol. 2, no. 2, pp. 159–176, 1999.
-7. S. A. Crosby and D. S. Wallach, "Efficient Data Structures for Tamper-Evident Logging," 18th USENIX Security Symposium, 2009.
-8. F. T. Liu, K. M. Ting and Z.-H. Zhou, "Isolation Forest," IEEE ICDM, 2008, pp. 413–422.
+# Admin Audit Logs
+
+Every security-sensitive action performed within EnvGuard is automatically recorded in an immutable audit log.
+
+### Recorded Events
+
+- Secret creation
+- Secret updates
+- Secret deletion
+- Secret reveal
+- Share link creation
+- Environment exports
+- User logins
+- Other security-relevant actions
+
+Each audit entry records:
+
+- User (actor)
+- Action performed
+- Affected resource
+- Timestamp
+- IP address
+- User agent
+
+### Access Control
+
+Audit Logs are available **only to administrators**.
+
+- Every team displays an **Audit Logs** button for admins.
+- Team members cannot view or access audit logs.
+- Audit entries are immutable and cannot be modified through the application.
+
+---
+
+# Compare Environments
+
+EnvGuard allows users to compare variables between two environments (for example, Development and Production) before synchronizing changes.
+
+### Comparison Results
+
+Variables are automatically classified as:
+
+- Same
+- Missing from target
+- Missing from source
+- Different value
+- Different protection setting
+
+Users can select any variables and securely copy them from the source environment to the target environment after confirming the changes.
+
+### Security
+
+- Protected variables remain hidden by default.
+- Comparisons use encrypted-value fingerprints, allowing values to be compared without exposing secret contents to the browser.
+- Revealing a protected value remains an explicit, audited action.
+- Audit logs record the source environment, target environment, affected variable keys, and the acting user can never see the secret values themselves.
+
+---
+
+# Getting Started
+
+## 1. Prerequisites
+
+- Node.js 18+
+- npm
+- Supabase Account
+- Mailjet Account
+- Google Cloud Project
+
+---
+
+## 2. Clone and Install
+
+```bash
+git clone https://github.com/maryamirshad04/EnvGuard.git
+
+cd envguard
+
+cd server
+npm install
+
+cd ../client
+npm install
+
+cd ../cli
+npm install
+```
+
+---
+
+## 3. Set Up Supabase
+
+Create a Supabase project.
+
+Run the provided SQL schema inside the SQL Editor.
+
+Copy:
+
+- Project URL
+- Service Role Key
+
+These become:
+
+```env
+SUPABASE_URL=
+SUPABASE_SERVICE_ROLE_KEY=
+```
+
+---
+
+## 4. Set Up Mailjet
+
+Create a Mailjet account.
+
+Create a sender email.
+
+Copy:
+
+```env
+MAILJET_API_KEY=
+MAILJET_API_SECRET=
+MAILJET_SENDER_EMAIL=
+```
+
+---
+
+## 5. Set Up Google Cloud
+
+Create an OAuth Client.
+
+Copy:
+
+```env
+GOOGLE_CLIENT_ID=
+NEXT_PUBLIC_GOOGLE_CLIENT_ID=
+```
+
+Add your local and production domains under:
+
+- Authorized JavaScript Origins
+- Authorized Redirect URIs
+
+---
+
+## 6. Set Up Passkeys (WebAuthn)
+
+### Install Packages
+
+Server
+
+```bash
+cd server
+
+npm install @simplewebauthn/server
+```
+
+Client
+
+```bash
+cd client
+
+npm install @simplewebauthn/browser
+```
+
+### Configure Environment Variables
+
+Add the following to your server `.env`:
+
+```env
+# Local Development
+PASSKEY_RP_ID=localhost
+PASSKEY_RP_NAME=EnvGuard
+```
+
+(for production, use your frontend domain as the RP ID)
+
+---
+
+## 7. Configure Environment Variables
+
+Server
+
+```bash
+cd server
+
+cp .env.example .env
+```
+
+Frontend
+
+```bash
+cd client
+
+cp .env.local.example .env.local
+```
+
+Generate secrets:
+
+```bash
+node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"
+```
+
+Generate encryption key:
+
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
+
+---
+
+## 8. Run Locally
+
+Backend
+
+```bash
+cd server
+
+npm run dev
+```
+
+Frontend
+
+```bash
+cd client
+
+npm run dev
+```
+
+Open
+
+```
+http://localhost:3000
+```
+
+---
+
+# CLI – Command Line Interface
+
+The EnvGuard CLI provides direct terminal access to companies, projects, environments, and encrypted variables.
+
+Instead of opening the dashboard, developers can authenticate once and manage secrets directly from the command line.
+
+---
+
+## Installation
+
+Install globally:
+
+```bash
+npm install -g envguard-secrets
+npm install -g envguard-secrets@latest
+```
+
+Verify installation:
+
+```bash
+envguard --version (103)
+```
+
+---
+
+## Setup (API URL) (optional)
+
+By default the CLI connects to the hosted backend.
+
+To use your own deployment:
+
+Linux / macOS
+
+```bash
+export ENVGUARD_API_URL=https://your-backend/api
+```
+
+Windows PowerShell
+
+```powershell
+$env:ENVGUARD_API_URL="https://your-backend/api"
+```
+
+---
+
+# Command Reference
+
+## Authentication
+
+| Command | Description |
+|----------|-------------|
+| `envguard login` | Authenticate with your EnvGuard account |
+| `envguard logout` | Logout and remove the stored session |
+| `envguard whoami` | Show the currently authenticated user |
+
+---
+
+## Company
+
+| Command | Description |
+|----------|-------------|
+| `envguard company list` | List all companies |
+| `envguard company select <name>` | Select a company |
+| `envguard company current` | Display the selected company |
+
+---
+
+## Project
+
+| Command | Description |
+|----------|-------------|
+| `envguard project list` | List projects |
+| `envguard project select <name>` | Select a project |
+| `envguard project current` | Show selected project |
+
+---
+
+## Environment
+
+| Command | Description |
+|----------|-------------|
+| `envguard environment list` | List environments |
+| `envguard environment select <name>` | Select an environment |
+| `envguard environment current` | Display current environment |
+
+---
+
+## Variables
+
+| Command | Description |
+|----------|-------------|
+| `envguard variable list` | List variables |
+| `envguard variable get <key>` | Display a variable |
+| `envguard variable set <key> <value>` | Create or update a variable |
+| `envguard variable set <key> <value> --secret` | Create or update a variable (protected) |
+| `envguard variable set <key> <value> --env <name>` | Create or update a variable If you haven't selected an environment, or want to override the selected one|
+| `envguard variable delete <key>` | Delete a variable |
+| `envguard variable delete <key> --env <name>` | Create or update a variable If you haven't selected an environment, or want to override the selected one|
+| `envguard variable reveal <key>` | Reveal an encrypted variable |
+| `envguard variable copy <key>` | Copy a variable to clipboard |
+| `envguard variable copy-all` | Copy all variables |
+| `envguard variable copy-all --env <name>` | Copy all variables of a specific env |
+| `envguard variable export` | Print .env content to terminal |
+| `envguard variable export --file .env` | Export variables to a file |
+| `envguard variable export --env <name> --file .env.<name>` | Export variables of specific env to a specific file |
+| `envguard variable import <file>` | Import variables from a `.env` file |
+| `envguard variable import .env --env <name> --create` | Import into a specific environment, creating it if missing
+| `envguard variable import .env --env <name> --create --secret-keys "<key>"` | create the environment (if missing) and import the variables, marking as secret
+| `envguard variable import .env --env <name>> --secret` | Mark all variables as secret
+| `envguard variable import .env --secret-keys "<key1>,<key2>,<key3>" ` | Mark specific keys as secret
+| `envguard variable import .env --env production --skip-existing` | Skip existing variables
+---
+
+## Global Options
+
+| Option | Description |
+|--------|-------------|
+| `--help` | Show command help |
+| `--version` | Show CLI version |
+
+---
+
+# Example CLI Workflow
+
+```bash
+envguard login
+
+envguard company list
+
+envguard company select personal
+
+envguard project list
+
+envguard project select backend
+
+envguard environment list
+
+envguard environment select production
+
+envguard variable list
+
+envguard variable reveal DATABASE_URL
+
+envguard variable copy DATABASE_URL
+
+envguard variable export
+```
+
+---
+
+Visit `https://env-guardd.vercel.app/`. Sign up and you'll land in a default "My Workspace" company as its admin, ready to create projects and invite teammates.

@@ -1,0 +1,19 @@
+{
+  "name": "envguard-secrets",
+  "version": "1.0.4",
+  "description": "EnvGuard secrets - manage encrypted environment variables from the terminal",
+  "bin": {
+    "envguard": "bin/envguard.js"
+  },
+  "main": "src/index.js",
+  "dependencies": {
+    "axios": "^1.7.7",
+    "chalk": "^4.1.2",
+    "cli-table3": "^0.6.5",
+    "clipboardy": "^2.3.0",
+    "commander": "^12.1.0",
+    "inquirer": "^8.2.6",
+    "open": "^8.4.2",
+    "ora": "^5.4.1"
+  }
+}
